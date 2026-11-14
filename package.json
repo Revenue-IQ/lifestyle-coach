@@ -1,0 +1,15 @@
+{
+  "name": "wellbeing",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "api",
+    "mobile"
+  ],
+  "scripts": {
+    "api": "npm run dev -w api",
+    "web": "npm run web -w mobile",
+    "test": "npm test -w api",
+    "db:push": "npm run db:push -w api"
+  }
+}

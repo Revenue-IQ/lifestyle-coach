@@ -1,0 +1,13 @@
+node_modules/
+.claude/settings.local.json
+.DS_Store
+.env
+.env.*
+!.env.example
+dist/
+build/
+.expo/
+web-build/
+*.log
+api/drizzle/meta/_journal.json.bak
+coverage/

@@ -1,0 +1,17 @@
+# Postgres with pgvector, matching the deployment described in docs/architecture/tech-stack.md.
+# Local development on a Mac that already runs Postgres can skip this and point
+# DATABASE_URL at the local server instead (see api/.env.example).
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: wellbeing
+      POSTGRES_PASSWORD: wellbeing
+      POSTGRES_DB: wellbeing
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+volumes:
+  dbdata:
