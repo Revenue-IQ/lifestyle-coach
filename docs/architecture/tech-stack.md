@@ -68,6 +68,8 @@ The AI estimates, the code rates, and suggestions are written from the app's own
 
 The rating is only recalculated from stored numbers. The AI is called again only when the person creates or edits an entry.
 
+**Change of order (2026-11-14):** the first ratings shipped are not log-based. Phase 2 rates each area from a short self-reported questionnaire scored by code (`docs/features/area-ratings.md`), because a log-based rating needs weeks of entries before it says anything. The meal extraction and other log-based ratings described above remain the plan for making those numbers honest over time; they are deferred, not dropped. The life areas are now Sleep, Diet, Movement, Gut health and Social belonging.
+
 The formula needs a target to rate against, so the app keeps a short profile: weight, age, sex and activity level. It is not collected at signup; every field is optional and is asked as a quest or at the moment it first matters, with a rougher rating shown if skipped. The original "goal" field was replaced by the "What's bugging you" screen. See `docs/features/profile.md` and `docs/features/whats-bugging-you.md` (decided 2026-11-14).
 
 ### Suggestions

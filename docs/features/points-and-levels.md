@@ -1,6 +1,6 @@
 # Points and levels
 
-Status: built in Phase 1 (web) · Last updated: 2026-11-14
+Status: built in Phase 1, area ratings added in Phase 2 (web) · Last updated: 2026-11-14
 
 ## What it does
 
@@ -17,12 +17,13 @@ Every time a person adds information, the app answers at once: a short banner sa
 | Two-week check-in (WHO-5) | 30 | once a day earns points |
 | Today's check-in | 5 | three a day earn points |
 | Each About you detail | 5 | once per field, ever |
+| Rating a life area | 25 | once a day per area earns points |
 
 Level thresholds (total points): 0, 30, 80, 150, 250, 400, 600, 850, 1150, 1500. Level 1 is where everyone starts.
 
 **The ledger.** Every award is a row in `points_ledger`: who, what kind, how many points, the reason text, which entry or field it was for, and when. Totals and levels are always calculated from the ledger (`api/src/game/award.ts` and `rules.ts`), never stored, so a rule change can be recomputed.
 
-**Caps.** An entry past its cap is still stored and still counts for the person; it just earns nothing that day. The banner says so plainly. Caps are per calendar day in UTC.
+**Caps.** An entry past its cap is still stored and still counts for the person; it just earns nothing that day. The banner says so plainly. Caps are per calendar day in UTC. A cap can be per reference (`perRef`), which is how rating two different areas in a day earns twice while rating the same area twice does not.
 
 **Quests.** The home screen offers up to three invitations (`api/src/routes/me.ts`), each with its payoff and points: tell us what's bugging you (if never answered), pick a name, the two-week check-in (if never taken), a bit about you (while any field is empty). They are offered in that order and disappear once done. Ignoring them costs nothing.
 

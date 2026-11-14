@@ -24,8 +24,12 @@ describe('where to look first', () => {
     expect(rankAreas(['nonsense']).every((r) => r.score === 0)).toBe(true);
   });
   it('breaks ties in display order', () => {
-    const ranked = rankAreas(['trouble-falling-asleep']);
+    const ranked = rankAreas(['tired-all-the-time']);
     const ones = ranked.filter((r) => r.score === 1).map((r) => r.area);
-    expect(ones).toEqual(['emotions']);
+    expect(ones).toEqual(['diet', 'movement']);
+  });
+  it('points loneliness and low mood at social belonging', () => {
+    expect(rankAreas(['lonely'])[0].area).toBe('social');
+    expect(rankAreas(['low-mood'])[0].area).toBe('social');
   });
 });

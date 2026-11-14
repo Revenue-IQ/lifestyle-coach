@@ -1,5 +1,5 @@
 import { and, count, eq, gte, sql } from 'drizzle-orm';
-import type { AwardKind } from '../config/game';
+import { GAME, type AwardKind } from '../config/game';
 import { db } from '../db/client';
 import { pointsLedger } from '../db/schema';
 import { decideAward, levelFor, pointsToNextLevel, startOfUtcDay } from './rules';
@@ -27,16 +27,17 @@ export async function standingFor(userId: string): Promise<Standing> {
 }
 
 async function alreadyAwarded(userId: string, kind: AwardKind, refId?: string): Promise<number> {
-  const once = kind === 'name' || kind === 'profile-field';
+  const cap = GAME.caps[kind];
   const conditions = [
     eq(pointsLedger.userId, userId),
     eq(pointsLedger.kind, kind),
     sql`${pointsLedger.points} > 0`,
   ];
-  if (once) {
+  if ('once' in cap) {
     if (refId) conditions.push(eq(pointsLedger.refId, refId));
   } else {
     conditions.push(gte(pointsLedger.createdAt, startOfUtcDay()));
+    if ('perRef' in cap && cap.perRef && refId) conditions.push(eq(pointsLedger.refId, refId));
   }
   const [row] = await db.select({ n: count() }).from(pointsLedger).where(and(...conditions));
   return row?.n ?? 0;

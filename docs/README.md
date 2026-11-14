@@ -21,3 +21,7 @@ The first-session flow, in the order a person meets it. Built in Phase 1 (web) o
 - [Profile ("About you")](features/profile.md) — the few skippable facts (name, over 18, age, sex, weight, activity level) that sharpen ratings, and what is deliberately not collected.
 - [Wellbeing check-in](features/wellbeing-check-in.md) — the WHO-5 two-week baseline score and the quick "today" mood and energy entry.
 - [Points and levels](features/points-and-levels.md) — what each contribution earns, the caps, the level thresholds, the quests, and the ledger they are computed from.
+
+Phase 2 (web), built 2026-11-14:
+
+- [Area ratings](features/area-ratings.md) — the five "how it usually is" questionnaires, the rating out of 100 with named gaps, the ranked home screen, and why Emotions became Social belonging.

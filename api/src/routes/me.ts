@@ -6,6 +6,7 @@ import { GAME } from '../config/game';
 import { db } from '../db/client';
 import { baselineCheckins, complaintSnapshots, todayCheckins, type User } from '../db/schema';
 import { standingFor } from '../game/award';
+import { areaStandings } from './areas';
 
 export interface Quest {
   id: 'name' | 'baseline' | 'about-you' | 'complaints';
@@ -56,7 +57,7 @@ export function questsFor(user: User, hasBaseline: boolean, hasComplaints: boole
 
 export const me = new Hono<{ Variables: AuthVariables }>().get('/', async (c) => {
   const user = c.get('user');
-  const [standing, latestBaseline, latestComplaints, todayCount] = await Promise.all([
+  const [standing, latestBaseline, latestComplaints, todayCount, areas] = await Promise.all([
     standingFor(user.id),
     db.query.baselineCheckins.findFirst({
       where: eq(baselineCheckins.userId, user.id),
@@ -67,6 +68,7 @@ export const me = new Hono<{ Variables: AuthVariables }>().get('/', async (c) =>
       orderBy: desc(complaintSnapshots.createdAt),
     }),
     db.$count(todayCheckins, eq(todayCheckins.userId, user.id)),
+    areaStandings(user.id),
   ]);
   return c.json({
     profile: {
@@ -90,6 +92,11 @@ export const me = new Hono<{ Variables: AuthVariables }>().get('/', async (c) =>
         }
       : null,
     todayCount,
-    game: { todayPoints: GAME.points.today, todayCapPerDay: GAME.caps.today.perDay },
+    areas,
+    game: {
+      todayPoints: GAME.points.today,
+      todayCapPerDay: GAME.caps.today.perDay,
+      areaCheckinPoints: GAME.points['area-checkin'],
+    },
   });
 });

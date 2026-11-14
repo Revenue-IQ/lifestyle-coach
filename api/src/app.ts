@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { requireUser, type AuthVariables } from './auth';
+import { areas } from './routes/areas';
 import { baseline } from './routes/baseline';
 import { complaints } from './routes/complaints';
 import { me } from './routes/me';
@@ -14,7 +15,8 @@ const api = new Hono<{ Variables: AuthVariables }>()
   .route('/profile', profile)
   .route('/complaints', complaints)
   .route('/baseline', baseline)
-  .route('/today', today);
+  .route('/today', today)
+  .route('/areas', areas);
 
 export const app = new Hono()
   .use(logger())

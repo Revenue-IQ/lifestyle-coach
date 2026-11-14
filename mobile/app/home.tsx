@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useMe, useSubmitComplaints } from '@/api/hooks';
 import type { Quest } from '@/api/client';
 import { useAppAuth } from '@/auth';
+import { BandPill, capitalise, ScoreBar } from '@/components/AreaRating';
 import { Body, Button, Card, ErrorText, Loading, Screen, Small, Title } from '@/components/ui';
 import { clearPending, loadPending } from '@/lib/pending';
 import { AREA_COLORS } from '@/theme';
@@ -41,7 +42,7 @@ export default function Home() {
   if (!isSignedIn) return <Redirect href="/" />;
   if (me.isLoading || !me.data) return <Loading />;
 
-  const { profile, standing, quests, latestBaseline, latestComplaints, game } = me.data;
+  const { profile, standing, quests, latestBaseline, latestComplaints, game, areas } = me.data;
   const lit = latestComplaints ? litAreas(latestComplaints.complaintIds) : [];
 
   return (
@@ -75,6 +76,42 @@ export default function Home() {
         </View>
         {standing.next ? <ProgressBar total={standing.total} needed={standing.next.needed} /> : null}
       </Card>
+
+      <Text className="mb-1 font-semibold text-lg text-ink">Your areas</Text>
+      <Small className="mb-3">
+        {areas.some((a) => a.latest)
+          ? 'Weakest first, so the top one is where to start. Rated from how you described a normal week.'
+          : 'Five things you do that shape how you feel. Rate one and it moves to the top if it needs attention.'}
+      </Small>
+      <View className="mb-6">
+        {areas.map((a, i) => (
+          <Link key={a.area} href={{ pathname: '/areas/[area]', params: { area: a.area } }} asChild>
+            <Pressable accessibilityRole="button" className="mb-2 rounded-2xl border border-line bg-card p-4 active:bg-paper">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <View className="mr-3 h-3 w-3 rounded-full" style={{ backgroundColor: AREA_COLORS[a.area].main }} />
+                  <Text className="font-semibold text-base text-ink">{a.label}</Text>
+                  {i === 0 && a.latest && a.latest.band === 'attention' ? (
+                    <Text className="ml-2 font-medium text-xs text-warn">start here</Text>
+                  ) : null}
+                </View>
+                {a.latest ? (
+                  <View className="flex-row items-center">
+                    <Text className="mr-2 font-bold text-lg text-ink">{a.latest.score}</Text>
+                    <BandPill band={a.latest.band} rough={a.latest.rough} />
+                  </View>
+                ) : (
+                  <Text className="font-semibold text-base text-accent">Rate it · +{game.areaCheckinPoints}</Text>
+                )}
+              </View>
+              {a.latest ? <ScoreBar area={a.area} score={a.latest.score} /> : null}
+              {a.latest && a.latest.gaps.length > 0 ? (
+                <Small className="mt-2">{capitalise(a.latest.gaps.slice(0, 2).join(', '))}</Small>
+              ) : null}
+            </Pressable>
+          </Link>
+        ))}
+      </View>
 
       <Text className="mb-2 font-semibold text-lg text-ink">Quick add</Text>
       <Link href="/today" asChild>

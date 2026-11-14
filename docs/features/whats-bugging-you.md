@@ -15,15 +15,18 @@ This screen is the hook. The person gets something back before the app asks anyt
 | Complaint | Looks first at | Also at |
 |---|---|---|
 | Tired all the time | Sleep | Diet, Movement |
-| Trouble falling asleep | Sleep | Emotions |
+| Trouble falling asleep | Sleep | Movement |
 | Wake up tired | Sleep | Diet |
 | Bloated or stomach trouble | Gut | Diet |
-| Snacking I can't stop | Diet | Sleep, Emotions |
-| Low mood | Emotions | Sleep, Movement |
-| Anxious or wound up | Emotions | Sleep, Gut |
+| Snacking I can't stop | Diet | Sleep, Gut |
+| Low mood | Social | Sleep, Movement |
+| Anxious or wound up | Sleep | Gut, Social |
 | No energy to move | Movement | Diet, Sleep |
 | Brain fog, can't focus | Sleep | Diet, Gut |
+| Mostly on my own | Social | Movement |
 | Not sure, something's off | (none) | invites the baseline check-in instead |
+
+The map was redrawn on 2026-11-14 when the Emotions area became Social belonging (see `docs/features/area-ratings.md`). "Low mood" and "Anxious" used to point at Emotions; they now point at the levers most often behind them.
 
 **The map.** Each complaint gives 2 points to its first area and 1 point to each "also" area. The card ranks the five areas by total and shows the top ones lit, with the complaints that lit them. "Not sure" lights nothing and points to the wellbeing check-in as the next step. The mapping is a plain table in the app code for Phase 1, so the card works with no backend and no AI call.
 

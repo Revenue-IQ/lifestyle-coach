@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * One row per person. Identity is the Clerk user id; the app stores no email,
@@ -42,6 +42,22 @@ export const todayCheckins = pgTable('today_checkins', {
   mood: integer('mood').notNull(),
   energy: integer('energy').notNull(),
   note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A dated "how it usually is" questionnaire for one life area. The score and
+ * gaps are computed by code from the answers and stored, so history stays
+ * stable if the questionnaire content is tuned later.
+ */
+export const areaCheckins = pgTable('area_checkins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  area: text('area').notNull(),
+  answers: jsonb('answers').$type<Record<string, string>>().notNull(),
+  score: integer('score').notNull(),
+  answered: integer('answered').notNull(),
+  gaps: text('gaps').array().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -18,6 +18,8 @@ export type Me = InferResponseType<Client['api']['me']['$get']>;
 export type Award = NonNullable<InferResponseType<Client['api']['complaints']['$post'], 201>['award']>;
 export type Quest = Me['quests'][number];
 export type BaselineResult = InferResponseType<Client['api']['baseline']['$post'], 201>['checkin'];
+export type AreaCheckin = InferResponseType<Client['api']['areas'][':area']['checkins']['$post'], 201>['checkin'];
+export type AreaStanding = Me['areas'][number];
 
 export class ApiError extends Error {
   constructor(

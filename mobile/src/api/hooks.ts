@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Who5Answers } from '@wellbeing/shared';
+import type { AreaAnswers, AreaId, Who5Answers } from '@wellbeing/shared';
 import { useAppAuth } from '../auth';
 import { useAwards } from '../game/AwardContext';
 import { unwrap, useApi, type Award } from './client';
@@ -57,6 +57,30 @@ export function useSubmitToday() {
     mutationFn: (json: { mood: number; energy: number; note?: string }) =>
       unwrap(api.api.today.$post({ json })),
     onSuccess: (data) => after(data.award),
+  });
+}
+
+export function useArea(area: AreaId) {
+  const api = useApi();
+  const { isSignedIn } = useAppAuth();
+  return useQuery({
+    queryKey: ['area', area],
+    queryFn: () => unwrap(api.api.areas[':area'].$get({ param: { area } })),
+    enabled: isSignedIn,
+  });
+}
+
+export function useSubmitAreaCheckin(area: AreaId) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const after = useAfterContribution();
+  return useMutation({
+    mutationFn: (answers: AreaAnswers) =>
+      unwrap(api.api.areas[':area'].checkins.$post({ param: { area }, json: { answers } })),
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: ['area', area] });
+      await after(data.award);
+    },
   });
 }
 
