@@ -113,6 +113,8 @@ export interface ProposedStep {
   title: string;
   why: string;
   targetCount: number;
+  /** Set when the person asked to swap: accepting this step drops that active step first. */
+  replacesStepId?: string;
 }
 
 export const messages = pgTable('messages', {
@@ -122,6 +124,8 @@ export const messages = pgTable('messages', {
   role: text('role').notNull(),
   /** For notices: crisis or drift. Lets the coach know a crisis notice was shown recently. */
   noticeKind: text('notice_kind'),
+  /** ANSWER, DECLINE or CARE for coach and notice rows (added 2026-11-15); null on user rows and older messages. */
+  behavior: text('behavior'),
   content: text('content').notNull(),
   noteIds: text('note_ids').array().notNull().default([]),
   proposedStep: jsonb('proposed_step').$type<ProposedStep | null>(),

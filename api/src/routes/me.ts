@@ -1,4 +1,4 @@
-import { ABOUT_YOU_FIELD_IDS, CRISIS_CARD, looksLikeCrisis } from '@wellbeing/shared';
+import { ABOUT_YOU_FIELD_IDS, CRISIS_CARD, flagsFor, looksLikeCrisis } from '@wellbeing/shared';
 import { and, desc, eq, isNull, or } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { aiEnabled } from '../ai/gemini';
@@ -107,6 +107,8 @@ export const me = new Hono<{ Variables: AuthVariables }>().get('/', async (c) =>
           createdAt: latestComplaints.createdAt.toISOString(),
         }
       : null,
+    /** Flags the latest cards carry (mood, gut). Home uses "mood" to put the two-week check-in first. */
+    complaintFlags: flagsFor(latestComplaints?.complaintIds ?? []),
     todayCount,
     areas,
     game: {

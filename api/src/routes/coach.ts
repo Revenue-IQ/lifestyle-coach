@@ -1,9 +1,10 @@
 import { zValidator } from '@hono/zod-validator';
-import { isAreaId, type AreaId } from '@wellbeing/shared';
+import { AREAS, isAreaId, type AreaId } from '@wellbeing/shared';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AiBusyError, AiUnavailableError, aiEnabled } from '../ai/gemini';
+import { env } from '../config/env';
 import type { AuthVariables } from '../auth';
 import { UNDER_18_MESSAGE } from '../coach/safety';
 import { openConversation, sendMessage } from '../coach/service';
@@ -41,13 +42,18 @@ async function presentConversation(conversationId: string) {
   const byId = new Map(sources.map((s) => [s.id, s]));
   for (const id of ids) {
     if (!byId.has(id)) {
-      const seed = notesForArea('diet').concat(notesForArea('sleep'), notesForArea('movement'), notesForArea('gut'), notesForArea('social')).find((n) => n.id === id);
+      const seed = AREAS.flatMap((a) => notesForArea(a)).find((n) => n.id === id);
       if (seed) byId.set(id, { id, title: seed.title, sourceName: seed.source.name, sourceUrl: seed.source.url });
     }
   }
   return rows.map((m) => ({
     id: m.id,
     role: m.role as 'coach' | 'user' | 'notice',
+    behavior: (m.behavior ?? (m.role === 'notice' ? (m.noticeKind === 'crisis' ? 'CARE' : 'DECLINE') : m.role === 'coach' ? 'ANSWER' : null)) as
+      | 'ANSWER'
+      | 'DECLINE'
+      | 'CARE'
+      | null,
     content: m.content,
     proposedStep: m.proposedStep ?? null,
     sources: m.noteIds.map((id) => byId.get(id)).filter((s): s is NonNullable<typeof s> => !!s),
@@ -56,6 +62,15 @@ async function presentConversation(conversationId: string) {
 }
 
 const UNAVAILABLE = 'The coach is not switched on yet: the API needs a GEMINI_API_KEY.';
+
+/**
+ * Evals send x-coach-ruleset: legacy to replay the coach as it was before
+ * 2026-11-15 (docs/features/evals.md). Honoured in dev auth mode only; real
+ * people always get the current rules.
+ */
+function rulesetFor(header: string | undefined): 'current' | 'legacy' {
+  return env.authMode === 'dev' && header === 'legacy' ? 'legacy' : 'current';
+}
 
 export const coach = new Hono<{ Variables: AuthVariables }>()
   /** Opens (or resumes) the coach for an area. Returns gates to answer first when needed. */
@@ -69,7 +84,7 @@ export const coach = new Hono<{ Variables: AuthVariables }>()
     if (!aiEnabled()) return c.json({ error: UNAVAILABLE }, 503);
     let convo;
     try {
-      convo = await openConversation(user, area, c.req.valid('json').startOver ?? false);
+      convo = await openConversation(user, area, c.req.valid('json').startOver ?? false, rulesetFor(c.req.header('x-coach-ruleset')));
     } catch (err) {
       if (err instanceof AiUnavailableError) return c.json({ error: UNAVAILABLE }, 503);
       if (err instanceof AiBusyError) return c.json({ error: err.message }, 503);
@@ -87,7 +102,7 @@ export const coach = new Hono<{ Variables: AuthVariables }>()
     if (!aiEnabled()) return c.json({ error: UNAVAILABLE }, 503);
     let reply;
     try {
-      reply = await sendMessage(user, c.req.param('id'), c.req.valid('json').content);
+      reply = await sendMessage(user, c.req.param('id'), c.req.valid('json').content, rulesetFor(c.req.header('x-coach-ruleset')));
     } catch (err) {
       if (err instanceof AiBusyError) return c.json({ error: err.message }, 503);
       console.error('[coach] reply failed', err);
@@ -110,7 +125,13 @@ export const coach = new Hono<{ Variables: AuthVariables }>()
     const active = await db.query.steps.findFirst({
       where: and(eq(steps.userId, user.id), eq(steps.area, convo.area), eq(steps.status, 'active')),
     });
-    if (active) return c.json({ error: 'You already have a step going in this area. Finish or drop it first.' }, 409);
+    if (active && msg.proposedStep.replacesStepId === active.id) {
+      // The person asked the coach for a different step and tapped the swap: the old one is
+      // dropped, not deleted, so everything logged against it stays theirs.
+      await db.update(steps).set({ status: 'dropped' }).where(eq(steps.id, active.id));
+    } else if (active) {
+      return c.json({ error: 'You already have a step going in this area. Finish or drop it first.' }, 409);
+    }
     const [step] = await db
       .insert(steps)
       .values({

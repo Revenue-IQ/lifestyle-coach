@@ -5,7 +5,8 @@ import { useSubmitComplaints } from '@/api/hooks';
 import { useAppAuth } from '@/auth';
 import { AreaCard } from '@/components/AreaCard';
 import { Button, ErrorText, Loading, SafetyNotice, Screen, Small, Subtitle, Title } from '@/components/ui';
-import { CRISIS_CARD, looksLikeCrisis } from '@wellbeing/shared';
+import { CRISIS_CARD, flagsFor, looksLikeCrisis, LOW_MOOD_SUPPORT } from '@wellbeing/shared';
+import { goBack } from '@/lib/navigation';
 import { clearPending, loadPending, type PendingComplaints } from '@/lib/pending';
 
 /** The instant result, and the one place that asks the person to make an account. */
@@ -26,7 +27,11 @@ export default function WhereToLook() {
       router.push('/sign-in');
       return;
     }
-    await submit.mutateAsync(pending);
+    try {
+      await submit.mutateAsync(pending);
+    } catch {
+      return; // shown by ErrorText below; nothing is lost
+    }
     await clearPending();
     router.replace('/home');
   };
@@ -40,12 +45,13 @@ export default function WhereToLook() {
             onPress={save}
             loading={submit.isPending}
           />
-          <Button title="Change my answers" variant="secondary" className="mt-2" onPress={() => router.back()} />
+          <Button title="Change my answers" variant="secondary" className="mt-2" onPress={() => goBack('/')} />
           <ErrorText error={submit.error} />
         </View>
       }
     >
       {looksLikeCrisis(pending.freeText) ? <SafetyNotice text={CRISIS_CARD} /> : null}
+      {flagsFor(pending.complaintIds).includes('mood') ? <SafetyNotice title="One thing first" text={LOW_MOOD_SUPPORT} /> : null}
 
       <Title>Here's a first look</Title>
       <Subtitle>

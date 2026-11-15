@@ -8,6 +8,7 @@ import {
   MIN_ANSWERED_FOR_FIRM,
   rankAreas,
   rateArea,
+  START_ORDER,
   type AreaId,
 } from '@wellbeing/shared';
 import { and, desc, eq } from 'drizzle-orm';
@@ -54,6 +55,8 @@ export type AreaStanding = {
   signal: { score: number; from: string[] } | null;
   /** "look": flagged by complaints or rated below solid. "rest": everything else. */
   section: 'look' | 'rest';
+  /** The one row that wears "Good place to start": the first worth-a-look area. */
+  goodStart: boolean;
 };
 
 /**
@@ -77,17 +80,20 @@ export async function areaStandings(userId: string, complaintIds: string[]): Pro
     const ranked = signals.get(area);
     const signal = ranked && ranked.score > 0 ? { score: ranked.score, from: [...new Set(ranked.from)] } : null;
     const worthALook = !!signal || (!!latest && latest.band !== 'solid');
-    return { area, label: AREA_LABELS[area], latest, signal, section: worthALook ? 'look' : 'rest' };
+    return { area, label: AREA_LABELS[area], latest, signal, section: worthALook ? 'look' : 'rest', goodStart: false };
   });
 
-  const order = (a: AreaStanding) => AREAS.indexOf(a.area);
-  return standings.sort((a, b) => {
+  // Ties break in the start order (sleep, food, gut, movement, social), the same order the first screen uses.
+  const order = (a: AreaStanding) => START_ORDER.indexOf(a.area);
+  standings.sort((a, b) => {
     if (a.section !== b.section) return a.section === 'look' ? -1 : 1;
     if (a.latest && b.latest) return a.latest.score - b.latest.score || order(a) - order(b);
     if (a.latest) return -1;
     if (b.latest) return 1;
     return (b.signal?.score ?? 0) - (a.signal?.score ?? 0) || order(a) - order(b);
   });
+  if (standings[0]?.section === 'look') standings[0].goodStart = true;
+  return standings;
 }
 
 export const areas = new Hono<{ Variables: AuthVariables }>()

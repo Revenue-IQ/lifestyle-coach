@@ -1,16 +1,30 @@
+import { FOOTER_DISCLAIMER } from '@wellbeing/shared';
+import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View, type PressableProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-/** Page shell: paper background, safe area, centred column that reads well on web and phone. */
-export function Screen({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+/**
+ * Page shell: paper background, safe area, centred column that reads well on web and phone.
+ * `home` puts a Home link in the top right, which every signed-in page has instead of a
+ * "Back home" button at the bottom.
+ */
+export function Screen({ children, footer, home }: { children: ReactNode; footer?: ReactNode; home?: boolean }) {
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top', 'left', 'right']}>
       <ScrollView
-        contentContainerClassName="flex-grow items-center px-4 pb-8 pt-6"
+        contentContainerClassName={`flex-grow items-center px-4 pb-8 ${home ? 'pt-2' : 'pt-6'}`}
         keyboardShouldPersistTaps="handled"
       >
+        {home ? (
+          <View className="mb-1 w-full max-w-md flex-row justify-end">
+            <HomeLink />
+          </View>
+        ) : null}
         <View className="w-full max-w-md flex-1">{children}</View>
+        <View className="w-full max-w-md pt-6">
+          <Text className="text-center font-sans text-xs leading-relaxed text-muted">{FOOTER_DISCLAIMER}</Text>
+        </View>
       </ScrollView>
       {footer ? (
         <View className="items-center border-t border-line bg-paper px-4 py-3">
@@ -18,6 +32,15 @@ export function Screen({ children, footer }: { children: ReactNode; footer?: Rea
         </View>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+/** The way back to home from any page: top right, always the same words. */
+export function HomeLink() {
+  return (
+    <Pressable accessibilityRole="button" onPress={() => router.replace('/home')} className="py-2 pl-3">
+      <Text className="font-semibold text-sm text-accent">Home</Text>
+    </Pressable>
   );
 }
 
@@ -81,18 +104,21 @@ export function Chip({
   selected,
   onPress,
   color,
+  wide,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
   color?: { main: string; soft: string };
+  /** Full width on its own row, for an answer that stands apart from the grid. */
+  wide?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}
-      className={`mb-2 mr-2 rounded-full border px-4 py-2.5 ${
+      className={`mb-2 rounded-full border px-4 py-2.5 ${wide ? 'w-full items-center' : 'mr-2'} ${
         selected ? 'border-ink bg-ink' : 'border-line bg-card active:bg-paper'
       }`}
       style={color && !selected ? { backgroundColor: color.soft, borderColor: color.soft } : undefined}
@@ -118,10 +144,10 @@ export function ErrorText({ error }: { error: unknown }) {
 }
 
 /** A plain safety message. No humour, shown before anything else on the screen. */
-export function SafetyNotice({ text }: { text: string }) {
+export function SafetyNotice({ text, title = 'A word first' }: { text: string; title?: string }) {
   return (
     <View className="mb-5 rounded-2xl border border-warn bg-warnSoft p-4">
-      <Text className="mb-1 font-semibold text-base text-ink">A word first</Text>
+      <Text className="mb-1 font-semibold text-base text-warn">{title}</Text>
       <Text className="font-sans text-base leading-relaxed text-ink">{text}</Text>
     </View>
   );

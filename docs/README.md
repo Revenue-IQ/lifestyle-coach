@@ -1,4 +1,6 @@
-# Wellbeing docs
+# Inner Weather docs
+
+The product is called Inner Weather (named 2026-11-15, from the teammates' buildathon material). The repository, packages and database keep the code name Wellbeing.
 
 Index of every doc in this project. Add a line here whenever a doc is created.
 
@@ -19,7 +21,7 @@ These are not docs, but they hold product rules that every screen must follow. T
 
 The first-session flow, in the order a person meets it. Built in Phase 1 (web) on 2026-11-14. How to run it is in the root [README](../README.md).
 
-- [What's bugging you](features/whats-bugging-you.md) — the first screen, before login: pick complaints, get a "where to look first" card, then save by logging in.
+- [What's bugging you](features/whats-bugging-you.md) — the first screens, before login: two rounds of cards (how you feel, what your days are like), a "where to look first" card, then save by logging in. Two rounds since Phase 4.
 - [Profile ("About you")](features/profile.md) — the few skippable facts (name, over 18, age, sex, weight, activity level) that sharpen ratings, and what is deliberately not collected.
 - [Wellbeing check-in](features/wellbeing-check-in.md) — the WHO-5 two-week baseline score and the quick "today" mood and energy entry.
 - [Points and levels](features/points-and-levels.md) — what each contribution earns, the caps, the level thresholds, the quests, and the ledger they are computed from.
@@ -31,4 +33,6 @@ Phase 2 (web), built 2026-11-14:
 Phase 3 (web), built 2026-11-14:
 
 - [Coach](features/coach.md) — the per-area coach that opens from the rating, talks from the knowledge base, proposes one step, and the safety rules enforced in code.
+- [Sample eval and safety run, 2026-11-15](evals/2026-11-15-sample-run.md) — 24 of the 157 team test cases replayed before and after the buildathon rules, case by case, with the replies in `docs/evals/runs/`, the findings and the limits of the sample.
+- [Evals](features/evals.md) — the teammates' test cases replayed through the API: how the harness maps cards and areas, the checks code can do, what a person still grades, and what it costs in model calls.
 - [Steps](features/steps.md) — the small counted steps agreed with the coach, how they earn points, and the one-active-step rule.

@@ -7,6 +7,7 @@ export const AREA_COLORS: Record<AreaId, { main: string; soft: string }> = {
   gut: { main: '#0D9488', soft: '#CCFBF1' },
   movement: { main: '#E11D48', soft: '#FFE4E6' },
   social: { main: '#7C3AED', soft: '#EDE9FE' },
+  downtime: { main: '#0369A1', soft: '#E0F2FE' },
 };
 
 /** Colours for the rating bands. */

@@ -1,4 +1,4 @@
-import { AREA_LABELS, areaBand, COMPLAINTS, type AreaId } from '@wellbeing/shared';
+import { AREA_LABELS, areaBand, complaintLabels, flagsFor, type AreaId, type Ruleset } from '@wellbeing/shared';
 import { and, asc, desc, eq, gte, isNotNull } from 'drizzle-orm';
 import { generateJson, type ChatTurn } from '../ai/gemini';
 import { GAME } from '../config/game';
@@ -14,9 +14,23 @@ import {
   type User,
 } from '../db/schema';
 import { retrieveNotes, safetyNote, type RetrievedNote } from '../knowledge/retrieve';
-import { WANTS_STEP_HINT, wantsStep } from './intent';
-import { openingInstruction, REPLY_SCHEMA, systemPrompt, type CoachReply, type ContextPack } from './prompt';
-import { CRISIS_MESSAGE, DRIFT_FALLBACK, driftsIntoMedicalAdvice, looksLikeCrisis, POST_CRISIS_WINDOW_MS } from './safety';
+import { WANTS_STEP_HINT, WANTS_SWAP_HINT, wantsStep, wantsSwap } from './intent';
+import { redactPersonalDetails } from './privacy';
+import { openingInstruction, REPLY_SCHEMA, systemPrompt, type Behavior, type CoachReply, type ContextPack } from './prompt';
+import {
+  CARE_HINTS,
+  CARE_MARKERS,
+  CARE_RESOURCES,
+  careConcern,
+  CRISIS_MESSAGE,
+  DIET_FALLBACK,
+  DRIFT_FALLBACK,
+  driftKind,
+  looksLikeCrisis,
+  PII_HINT,
+  POST_CRISIS_WINDOW_MS,
+  type CareKind,
+} from './safety';
 
 /** True when a crisis notice was shown to this person within the window, in any area. */
 export async function hadRecentCrisis(userId: string): Promise<boolean> {
@@ -30,7 +44,7 @@ export async function hadRecentCrisis(userId: string): Promise<boolean> {
   return !!row;
 }
 
-export async function buildContext(user: User, area: AreaId, conversationId?: string): Promise<ContextPack> {
+export async function buildContext(user: User, area: AreaId, conversationId?: string, ruleset: Ruleset = 'current'): Promise<ContextPack> {
   const [rating, complaints, baseline, allSteps, recentCrisis, proposals] = await Promise.all([
     db.query.areaCheckins.findFirst({
       where: and(eq(areaCheckins.userId, user.id), eq(areaCheckins.area, area)),
@@ -50,7 +64,6 @@ export async function buildContext(user: User, area: AreaId, conversationId?: st
       ? db.query.messages.findMany({ where: and(eq(messages.conversationId, conversationId), isNotNull(messages.proposedStep)) })
       : Promise.resolve([]),
   ]);
-  const labels = new Map(COMPLAINTS.map((c) => [c.id, c.label]));
   const takenUp = new Set(allSteps.map((s) => s.title));
   const pendingProposals = [...new Set(proposals.map((m) => m.proposedStep?.title).filter((t): t is string => !!t && !takenUp.has(t)))];
   return {
@@ -59,7 +72,8 @@ export async function buildContext(user: User, area: AreaId, conversationId?: st
     rating: rating
       ? { score: rating.score, band: areaBand(rating.score), gaps: rating.gaps, createdAt: rating.createdAt.toISOString() }
       : null,
-    complaints: complaints ? complaints.complaintIds.map((id) => labels.get(id) ?? id) : [],
+    complaints: complaints ? complaintLabels(complaints.complaintIds) : [],
+    flags: flagsFor(complaints?.complaintIds ?? []),
     freeText: complaints?.freeText ?? null,
     baselineScore: baseline?.score ?? null,
     activeSteps: allSteps.filter((s) => s.status === 'active'),
@@ -67,6 +81,7 @@ export async function buildContext(user: User, area: AreaId, conversationId?: st
     pendingProposals,
     recentCrisis,
     distressInContext: looksLikeCrisis(complaints?.freeText) || looksLikeCrisis(user.conditions),
+    ruleset,
   };
 }
 
@@ -105,10 +120,18 @@ interface Produced {
   proposedStep: ProposedStep | null;
   role: 'coach' | 'notice';
   noticeKind?: 'crisis' | 'drift';
+  /** ANSWER, DECLINE or CARE: the model's label, overridden by code where a rule applies. */
+  behavior: Behavior;
 }
 
 /** Runs retrieval, the model, and the output checks. Never throws a model error to the user unhandled. */
-async function produceReply(ctx: ContextPack, turns: ChatTurn[], latestUserText: string | null): Promise<Produced> {
+async function produceReply(
+  ctx: ContextPack,
+  turns: ChatTurn[],
+  latestUserText: string | null,
+  swapRequested = false,
+  care: CareKind | null = null,
+): Promise<Produced> {
   const notes: RetrievedNote[] = await retrieveNotes(ctx.area, retrievalQuery(ctx, latestUserText));
   const safety = safetyNote(ctx.area);
   if (safety && !notes.some((n) => n.id === safety.id)) notes.push(safety);
@@ -119,21 +142,42 @@ async function produceReply(ctx: ContextPack, turns: ChatTurn[], latestUserText:
     schema: REPLY_SCHEMA as unknown as Record<string, unknown>,
   });
 
-  const reply = (out.reply ?? '').trim();
-  if (!reply || driftsIntoMedicalAdvice(reply)) {
-    return { content: DRIFT_FALLBACK, noteIds: [], proposedStep: null, role: 'notice', noticeKind: 'drift' };
+  let reply = (out.reply ?? '').trim();
+  const drift = reply ? driftKind(reply, ctx.ruleset) : 'medical';
+  if (!reply || drift) {
+    return {
+      content: drift === 'diet' ? DIET_FALLBACK : DRIFT_FALLBACK,
+      noteIds: [],
+      proposedStep: null,
+      role: 'notice',
+      noticeKind: 'drift',
+      behavior: 'DECLINE',
+    };
+  }
+  let behavior: Behavior = out.behavior === 'DECLINE' || out.behavior === 'CARE' ? out.behavior : 'ANSWER';
+  if (care) {
+    // A care concern is CARE whatever the model said, and the resource line must be there.
+    behavior = 'CARE';
+    const marker = CARE_MARKERS[care];
+    if (marker && !reply.includes(marker)) reply = `${reply} ${CARE_RESOURCES[care]}`;
   }
   const allowed = new Set(notes.map((n) => n.id));
   const noteIds = (out.usedNoteIds ?? []).filter((id) => allowed.has(id));
   let step = cleanStep(out.proposedStep);
-  if (step && ctx.activeSteps.length > 0) step = null; // one active step per area, enforced in code
+  if (step && behavior !== 'ANSWER') step = null; // no steps while declining or caring
+  if (step && ctx.activeSteps.length > 0) {
+    // One active step per area, enforced in code. When the person asked to swap, the
+    // proposal is kept and marked with the step it would replace; accepting it drops that one.
+    if (swapRequested) step = { ...step, replacesStepId: ctx.activeSteps[0].id };
+    else step = null;
+  }
   if (step && ctx.recentCrisis) step = null; // no steps while stepped back after a crisis notice
-  if (step && driftsIntoMedicalAdvice(`${step.title} ${step.why}`)) step = null;
-  return { content: reply, noteIds, proposedStep: step, role: 'coach' };
+  if (step && driftKind(`${step.title} ${step.why}`, ctx.ruleset)) step = null;
+  return { content: reply, noteIds, proposedStep: step, role: 'coach', behavior };
 }
 
 /** Finds the active conversation for an area, or starts one with an opening message. */
-export async function openConversation(user: User, area: AreaId, startOver: boolean) {
+export async function openConversation(user: User, area: AreaId, startOver: boolean, ruleset: Ruleset = 'current') {
   let convo = await db.query.conversations.findFirst({
     where: and(eq(conversations.userId, user.id), eq(conversations.area, area), eq(conversations.active, true)),
   });
@@ -151,7 +195,7 @@ export async function openConversation(user: User, area: AreaId, startOver: bool
   }
   if (!convo) {
     // Generate the opening first, so a failed model call leaves nothing behind.
-    const ctx = await buildContext(user, area);
+    const ctx = await buildContext(user, area, undefined, ruleset);
     const produced = await produceReply(ctx, [{ role: 'user', text: openingInstruction(ctx) }], null);
     const [created] = await db.insert(conversations).values({ userId: user.id, area }).returning();
     convo = created;
@@ -159,6 +203,7 @@ export async function openConversation(user: User, area: AreaId, startOver: bool
       conversationId: convo.id,
       role: produced.role,
       noticeKind: produced.noticeKind ?? null,
+      behavior: produced.behavior,
       content: produced.content,
       noteIds: produced.noteIds,
       proposedStep: produced.proposedStep,
@@ -167,25 +212,32 @@ export async function openConversation(user: User, area: AreaId, startOver: bool
   return convo;
 }
 
-export async function sendMessage(user: User, conversationId: string, text: string) {
+export async function sendMessage(user: User, conversationId: string, text: string, ruleset: Ruleset = 'current') {
   const convo = await db.query.conversations.findFirst({
     where: and(eq(conversations.id, conversationId), eq(conversations.userId, user.id)),
   });
   if (!convo) return null;
   const area = convo.area as AreaId;
-  const content = text.trim().slice(0, 1000);
+  // Emails, phone and ID numbers are removed before anything is stored or sent to the model.
+  const { text: content, redacted } = ruleset === 'current' ? redactPersonalDetails(text.trim().slice(0, 1000)) : { text: text.trim().slice(0, 1000), redacted: false };
 
   // Produce the reply first. If the model fails, nothing is stored, so a retry
   // does not leave the person's message in the history twice.
   let produced: Produced;
-  if (looksLikeCrisis(content)) {
-    produced = { content: CRISIS_MESSAGE, noteIds: [], proposedStep: null, role: 'notice', noticeKind: 'crisis' };
+  if (looksLikeCrisis(content, ruleset)) {
+    produced = { content: CRISIS_MESSAGE, noteIds: [], proposedStep: null, role: 'notice', noticeKind: 'crisis', behavior: 'CARE' };
   } else {
-    const ctx = await buildContext(user, area, conversationId);
+    const ctx = await buildContext(user, area, conversationId, ruleset);
     const turns = await history(conversationId);
-    const forModel = wantsStep(content) ? content + WANTS_STEP_HINT : content;
+    const care = careConcern(content, ruleset);
+    const swap = !care && ctx.activeSteps.length > 0 && wantsSwap(content);
+    let forModel = content;
+    if (care) forModel += CARE_HINTS[care];
+    else if (swap) forModel += WANTS_SWAP_HINT;
+    else if (wantsStep(content)) forModel += WANTS_STEP_HINT;
+    if (redacted) forModel += PII_HINT;
     turns.push({ role: 'user', text: forModel });
-    produced = await produceReply(ctx, turns, content);
+    produced = await produceReply(ctx, turns, content, swap, care);
   }
 
   await db.insert(messages).values({ conversationId, role: 'user', content });
@@ -195,6 +247,7 @@ export async function sendMessage(user: User, conversationId: string, text: stri
       conversationId,
       role: produced.role,
       noticeKind: produced.noticeKind ?? null,
+      behavior: produced.behavior,
       content: produced.content,
       noteIds: produced.noteIds,
       proposedStep: produced.proposedStep,

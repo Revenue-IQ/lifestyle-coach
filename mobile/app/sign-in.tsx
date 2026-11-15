@@ -1,4 +1,5 @@
 import { Redirect, router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { AUTH_MODE, useAppAuth } from '@/auth';
@@ -14,12 +15,13 @@ export default function SignIn() {
 
   return (
     <Screen>
+      <Small className="mb-1 font-semibold text-accent">Inner Weather</Small>
       <Title>Save your answers</Title>
       <Subtitle>
         An email is all we need, to send you a sign-in code. No password to remember, and no real name anywhere.
       </Subtitle>
       {AUTH_MODE === 'clerk' ? <ClerkSignIn /> : <DevSignIn />}
-      <Button title="Not now" variant="ghost" className="mt-4" onPress={() => router.back()} />
+      <Button title="Not now" variant="ghost" className="mt-4" onPress={() => goBack('/')} />
     </Screen>
   );
 }

@@ -28,6 +28,7 @@ export default function Today() {
 
   return (
     <Screen
+      home
       footer={
         <View>
           <Button title="Save" onPress={save} disabled={!ok} loading={submit.isPending} />

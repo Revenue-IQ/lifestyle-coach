@@ -52,6 +52,7 @@ function AreaBody({
 
   return (
     <Screen
+      home
       footer={
         <View>
           {latest ? (
@@ -73,7 +74,6 @@ function AreaBody({
               </Link>
             </>
           )}
-          <Button title="Back home" variant="ghost" className="mt-1" onPress={() => router.replace('/home')} />
         </View>
       }
     >

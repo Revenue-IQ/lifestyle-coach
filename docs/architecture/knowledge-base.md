@@ -1,6 +1,6 @@
 # Knowledge base
 
-Status: built in Phase 3 and loaded locally (59 notes embedded on 2026-11-14); notes await the owner's review before the demo · Last updated: 2026-11-14
+Status: built in Phase 3; 59 notes embedded locally on 2026-11-14, 14 Downtime notes added 2026-11-15 and not yet loaded · Last updated: 2026-11-15
 
 ## What this covers
 
@@ -8,7 +8,7 @@ The app's own guidance notes, how they are stored and embedded, and how the coac
 
 ## The notes
 
-`api/src/knowledge/notes.ts` holds every note as content: an id, the area, a title, a body of two to four sentences in our own words, the public source it was drawn from (name and URL), and tags. On 2026-11-14 there are 59 notes: 22 for Diet, 11 for Sleep, 8 for Movement, 9 for Gut health, 9 for Social belonging. Every area has a note tagged `safety` that says when to see a professional; it is always included in retrieval.
+`api/src/knowledge/notes.ts` holds every note as content: an id, the area, a title, a body of two to four sentences in our own words, the public source it was drawn from (name and URL), and tags. On 2026-11-15 there are 73 notes: 22 for Food, 11 for Sleep, 8 for Movement, 9 for Gut health, 9 for Social belonging, 14 for Downtime. The Downtime notes (work cutoffs, real breaks, a buffer between work and home, fifteen protected minutes, a breathing exercise with steps, a script for pushing back, something to look forward to midweek, unwinding without the drink, caregiving, on-call recovery, and when stress is more than a busy patch) were written from NHS, APA, NIOSH, Mind, Mayo Clinic, Sleep Foundation and Family Caregiver Alliance pages. The owner chose on 2026-11-15 to load them for the buildathon demo without a line-by-line review; run `npm run kb:load -w api` locally and the "load knowledge notes" workflow on the server to embed them. Until then the tag fallback serves them. Every area has a note tagged `safety` that says when to see a professional; it is always included in retrieval.
 
 Sources used: NHS Eat well, the WHO healthy diet fact sheet, British Dietetic Association food facts and fibre sheet, NHS sleep and tiredness, Sleep Foundation sleep hygiene, CDC and WHO physical activity guidance, NHS digestive health, the US Surgeon General's advisory on loneliness, Campaign to End Loneliness, and Mind on loneliness.
 

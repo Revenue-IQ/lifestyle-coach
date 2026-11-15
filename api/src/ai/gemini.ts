@@ -1,4 +1,5 @@
 import { env } from '../config/env';
+import { NotJsonError, parseJsonLoosely } from './json';
 
 /**
  * The one place that talks to the Gemini API, over plain HTTP.
@@ -97,6 +98,7 @@ async function call(path: string, body: unknown, timeoutMs: number): Promise<unk
 /** True for failures that are the model's (busy, overloaded, slow), where another model is worth trying. */
 function isTransient(err: unknown): boolean {
   if (err instanceof GeminiNetworkError) return true;
+  if (err instanceof NotJsonError) return true; // a garbled or cut-off reply: another model will do better
   if (err instanceof GeminiHttpError) return err.status === 429 || err.status >= 500;
   if (err instanceof Error) {
     return err.name === 'TimeoutError' || err.name === 'AbortError' || /fetch failed|timeout/i.test(err.message);
@@ -117,12 +119,16 @@ type GenerateResponse = {
   candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[];
 };
 
-async function generateWith(model: string, opts: GenerateJsonOptions, withThinkingConfig: boolean): Promise<string> {
+async function generateWith(
+  model: string,
+  opts: GenerateJsonOptions,
+  withThinkingConfig: boolean,
+): Promise<{ text: string; finishReason?: string }> {
   const generationConfig: Record<string, unknown> = {
     responseMimeType: 'application/json',
     responseSchema: opts.schema,
     temperature: opts.temperature ?? 0.6,
-    maxOutputTokens: opts.maxOutputTokens ?? 1200,
+    maxOutputTokens: opts.maxOutputTokens ?? 2000,
   };
   // Keep the model from thinking at length: the coach's replies are short and the person is waiting.
   if (withThinkingConfig) generationConfig.thinkingConfig = { thinkingLevel: 'low' };
@@ -140,8 +146,8 @@ async function generateWith(model: string, opts: GenerateJsonOptions, withThinki
   const candidate = data.candidates?.[0];
   const parts = candidate?.content?.parts ?? [];
   const text = parts.filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');
-  if (!text) throw new Error(`Gemini ${model} returned no text (finishReason ${candidate?.finishReason ?? 'unknown'})`);
-  return text;
+  if (!text) throw new NotJsonError(model, candidate?.finishReason, '(no text)');
+  return { text, finishReason: candidate?.finishReason };
 }
 
 /** Generates a JSON object matching `schema`, trying the model chain in order. */
@@ -151,22 +157,20 @@ export async function generateJson<T>(opts: GenerateJsonOptions): Promise<T> {
   let earliestRetryMs = Infinity;
   for (const model of textModelChain()) {
     try {
-      let text: string;
+      let out: { text: string; finishReason?: string };
       try {
-        text = await generateWith(model, opts, true);
+        out = await generateWith(model, opts, true);
       } catch (err) {
         // An older model may reject thinkingConfig; try once more without it.
         if (err instanceof GeminiHttpError && err.status === 400 && /thinking/i.test(err.body)) {
-          text = await generateWith(model, opts, false);
+          out = await generateWith(model, opts, false);
         } else {
           throw err;
         }
       }
-      try {
-        return JSON.parse(text) as T;
-      } catch {
-        throw new Error(`Gemini ${model} returned something that was not the JSON we asked for`);
-      }
+      const parsed = parseJsonLoosely<T>(out.text);
+      if (parsed === undefined) throw new NotJsonError(model, out.finishReason, out.text);
+      return parsed;
     } catch (err) {
       lastError = err;
       if (err instanceof AiUnavailableError) throw err;
@@ -178,9 +182,10 @@ export async function generateJson<T>(opts: GenerateJsonOptions): Promise<T> {
         earliestRetryMs = Math.min(earliestRetryMs, dailyMs);
       } else {
         allDailyQuota = false;
-        coolingDown.set(model, Date.now() + COOLDOWN_MS);
+        // A garbled reply is a one-off, not a busy model: no cooldown, so the lite model keeps its turn next time.
+        if (!(err instanceof NotJsonError)) coolingDown.set(model, Date.now() + COOLDOWN_MS);
       }
-      console.warn(`[gemini] ${model} unavailable (${(err as Error).message.slice(0, 120)}), trying next model`);
+      console.warn(`[gemini] ${model} unavailable (${(err as Error).message.slice(0, 240)}), trying next model`);
     }
   }
   console.error('[gemini] every text model failed', lastError instanceof Error ? lastError.message.slice(0, 200) : lastError);

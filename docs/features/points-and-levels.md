@@ -1,6 +1,6 @@
 # Points and levels
 
-Status: built in Phase 1, area ratings added in Phase 2 (web) · Last updated: 2026-11-14
+Status: built in Phase 1, area ratings added in Phase 2 (web) · Last updated: 2026-11-15
 
 ## What it does
 
@@ -27,7 +27,7 @@ Level thresholds (total points): 0, 30, 80, 150, 250, 400, 600, 850, 1150, 1500.
 
 **Caps.** An entry past its cap is still stored and still counts for the person; it just earns nothing that day. The banner says so plainly. Caps are per calendar day in UTC. A cap can be per reference (`perRef`), which is how rating two different areas in a day earns twice while rating the same area twice does not.
 
-**Quests.** The home screen offers up to three invitations (`api/src/routes/me.ts`), each with its payoff and points: tell us what's bugging you (if never answered), pick a name, the two-week check-in (if never taken), a bit about you (while any field is empty). They are offered in that order and disappear once done. Ignoring them costs nothing.
+**Quests.** The home screen offers up to three invitations as small pills in the row under the greeting (since 2026-11-15; they were full cards in a "Small quests" section before) (`api/src/routes/me.ts`), each with its payoff and points: tell us what's bugging you (if never answered), pick a name, the two-week check-in (if never taken), a bit about you (while any field is empty). They are offered in that order and disappear once done. Ignoring them costs nothing.
 
 **The response.** Every write endpoint returns an `award` with the points, the reason, the new total and level, what the next level needs, and whether a level was reached. The app shows it in one banner (`mobile/src/game/AwardContext.tsx`) that fades after a few seconds, longer for a level-up, and can be tapped away.
 

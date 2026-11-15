@@ -11,3 +11,6 @@ web-build/
 *.log
 api/drizzle/meta/_journal.json.bak
 coverage/
+
+# Eval runs hold model replies; keep them out of the repo
+buildathon/results/

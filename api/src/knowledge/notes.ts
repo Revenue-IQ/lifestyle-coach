@@ -33,6 +33,15 @@ const BDA_FIBRE = { name: 'BDA fibre food fact sheet', url: 'https://www.bda.uk.
 const SURGEON_GENERAL = { name: 'US Surgeon General advisory on loneliness and social connection', url: 'https://www.hhs.gov/surgeongeneral/priorities/connection/index.html' };
 const CAMPAIGN_LONELINESS = { name: 'Campaign to End Loneliness', url: 'https://www.campaigntoendloneliness.org/' };
 const MIND = { name: 'Mind: loneliness', url: 'https://www.mind.org.uk/information-support/tips-for-everyday-living/loneliness/' };
+const NHS_STRESS = { name: 'NHS: tips to reduce stress', url: 'https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/tips-to-reduce-stress/' };
+const NHS_BREATHING = { name: 'NHS: breathing exercise for stress', url: 'https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/' };
+const APA_STRESS = { name: 'American Psychological Association: stress', url: 'https://www.apa.org/topics/stress' };
+const NIOSH_STRESS = { name: 'NIOSH (CDC): stress at work', url: 'https://www.cdc.gov/niosh/topics/stress/default.html' };
+const MIND_STRESS = { name: 'Mind: managing stress', url: 'https://www.mind.org.uk/information-support/types-of-mental-health-problems/stress/' };
+const MAYO_BURNOUT = { name: 'Mayo Clinic: job burnout', url: 'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/burnout/art-20046642' };
+const SF_ALCOHOL = { name: 'Sleep Foundation: alcohol and sleep', url: 'https://www.sleepfoundation.org/nutrition/alcohol-and-sleep' };
+const SAMHSA = { name: 'SAMHSA National Helpline', url: 'https://www.samhsa.gov/find-help/national-helpline' };
+const CAREGIVER_ALLIANCE = { name: 'Family Caregiver Alliance', url: 'https://www.caregiver.org/' };
 
 export const NOTES: NoteSeed[] = [
   // ---------------------------------------------------------------- diet
@@ -515,6 +524,121 @@ export const NOTES: NoteSeed[] = [
     body: 'If isolation comes with persistent low mood, loss of interest in things, or thoughts of not wanting to be here, it needs more than habits: please talk to a doctor or a mental health professional, and if you are in danger, contact your local emergency services or a crisis line now. The steps here are for everyday connection.',
     source: MIND,
     tags: ['professional', 'safety', 'low mood', 'feeling isolated most of the time'],
+  },
+  // ---------------------------------------------------------------- downtime
+  // Added 2026-11-15 for the Downtime area. Written from public guidance like the rest;
+  // the owner chose to load these for the buildathon demo without a line-by-line review.
+  {
+    id: 'downtime-recovery-not-reward',
+    area: 'downtime',
+    title: 'Recovery is not a reward',
+    body: 'The body treats a day of pressure like a workout: it needs time off afterwards to recover. Without it, stress shows up as broken sleep, a short fuse and feeling flat, however well everything else is going. Rest is part of the work, not something earned once the work is done.',
+    source: APA_STRESS,
+    tags: ['work that never really stops', 'no time that is actually yours', 'stress', 'recovery', 'tired', 'flat'],
+  },
+  {
+    id: 'downtime-cutoff',
+    area: 'downtime',
+    title: 'A cutoff time for work messages',
+    body: 'Pick a time after which work messages wait until morning, switch their notifications off at that hour, and tell the people who message you. Almost nothing is as urgent as a late ping feels, and most colleagues relax once one person sets the pattern. A cutoff of even 8pm beats none.',
+    source: NIOSH_STRESS,
+    tags: ['work trickling on through the evening', 'work that never really stops', 'notifications', 'cutoff', 'slack', 'messages', 'evening', 'email'],
+  },
+  {
+    id: 'downtime-morning-before-email',
+    area: 'downtime',
+    title: 'Twenty minutes before the inbox',
+    body: 'Opening work messages from bed hands the day to other people before it has started. Leaving email and chat alone for the first twenty or thirty minutes, and doing one thing of your own first, such as a coffee by the window or a short walk, changes how the whole morning feels.',
+    source: APA_STRESS,
+    tags: ['work messages before getting out of bed', 'morning', 'email', 'wake up', 'phone'],
+  },
+  {
+    id: 'downtime-real-breaks',
+    area: 'downtime',
+    title: 'Short real breaks',
+    body: 'A five-minute break away from the screen every hour or so, ideally outside or at a window, resets attention and lowers the stress that builds through back-to-back meetings. Lunch away from the desk on even two days a week counts. A break taken in a chair in front of the same screen is not a break.',
+    source: NIOSH_STRESS,
+    tags: ['rarely taking a real break', 'no real breaks in the working day', 'break', 'lunch', 'desk', 'meetings', 'guilty'],
+  },
+  {
+    id: 'downtime-transition',
+    area: 'downtime',
+    title: 'A buffer between work and home',
+    body: 'Snapping at people after work usually means there was no gap between the two. A ten-minute transition, such as a walk round the block, changing clothes, or one song with the door shut, lets the work day end before the evening starts. People who work from home need it most, because the commute used to do it for them.',
+    source: MIND_STRESS,
+    tags: ['easily annoyed', 'snap', 'partner', 'irritable', 'transition', 'commute', 'work that never really stops', 'working from home'],
+  },
+  {
+    id: 'downtime-fifteen-minutes',
+    area: 'downtime',
+    title: 'Fifteen minutes that are yours',
+    body: 'Time of your own works when it is small, fixed and protected like a meeting: the same fifteen minutes most days, for something you chose. For parents and carers, that might be the first quarter of an hour after the children are asleep, or a coffee alone before everyone is up. Fifteen minutes that happen beat an hour that never does.',
+    source: NHS_STRESS,
+    tags: ['no time that is actually yours', 'almost no time of your own in the week', 'kids', 'children', 'parent', 'carer', 'caregiver', 'time for myself', 'chores'],
+  },
+  {
+    id: 'downtime-breathing',
+    area: 'downtime',
+    title: 'A breathing exercise that actually works',
+    body: 'Sit or lie comfortably. Breathe in through the nose for a slow count of five, without forcing it, then out through the mouth for a count of five. Keep going for three to five minutes. The long, steady out-breath is what tells the body to settle. It works in a car park before a meeting as well as at bedtime.',
+    source: NHS_BREATHING,
+    tags: ['stress', 'worried', 'breathing', 'racing', 'calm', 'anxious', 'wound up', 'sunday', 'before bed'],
+  },
+  {
+    id: 'downtime-pushing-back',
+    area: 'downtime',
+    title: 'A script for pushing back',
+    body: 'Saying no outright is hard; asking for priorities is easy and gets the same result. Try: "I can do this by Friday, or the report today, which matters more to you?" Or for an evening ping: "I will pick this up first thing tomorrow." Managers mostly want to know what will slip, not to be refused, and a calm question about priorities is read as competence.',
+    source: APA_STRESS,
+    tags: ['absorbing extra work rather than pushing back', 'not able to push back at work', 'manager', 'say no', 'priorities', 'boundary', 'script', 'offline'],
+  },
+  {
+    id: 'downtime-something-to-look-forward-to',
+    area: 'downtime',
+    title: 'Something to look forward to midweek',
+    body: 'Living for the weekend makes five days out of seven feel like waiting. One small fixed thing on a Wednesday, such as a film night, a class, a call with a friend, or a favourite meal, breaks the week in two. For Sunday-evening dread, a short Sunday ritual you enjoy and a ten-minute plan for Monday morning take some of the sting out.',
+    source: MIND_STRESS,
+    tags: ['nothing to look forward to in the week', 'nothing to look forward to', 'weekend', 'sunday', 'dread', 'monday', 'weekdays'],
+  },
+  {
+    id: 'downtime-unwinding-without-the-drink',
+    area: 'downtime',
+    title: 'Unwinding without the drink',
+    body: 'A drink does take the edge off the evening, which is exactly why it becomes the default. The cost is sleep: alcohol breaks up the second half of the night, so the next day is heavier and the drink more tempting. Nobody needs a lecture. Swapping the first drink for a different ritual, such as a walk, a shower, or a proper cup of something, on two or three evenings a week is a realistic place to start.',
+    source: SF_ALCOHOL,
+    tags: ['a drink as the main way to unwind', 'drink', 'wine', 'beer', 'alcohol', 'relax', 'unwind'],
+  },
+  {
+    id: 'downtime-finding-your-thing',
+    area: 'downtime',
+    title: 'Not knowing what you would do with free time',
+    body: 'When every hour has been spoken for, free time can feel blank. Start with what you enjoyed at twelve: drawing, football, music, making things, being outside. Try one for fifteen minutes with no goal. Meditation is one way to rest, not the only one; a walk, a puzzle or cooking slowly can do the same job for people who hated sitting still.',
+    source: MIND_STRESS,
+    tags: ['no way to unwind', 'hobby', 'free time', 'meditation', 'enjoy', 'bored'],
+  },
+  {
+    id: 'downtime-caregiving',
+    area: 'downtime',
+    title: 'When you are the carer',
+    body: 'Caring for a parent, partner or child with needs is a job on top of a job, and the usual advice to take an evening off can feel insulting. What helps is small and shared: a ten-minute break that is yours each day, asking one specific person for one specific hour a week, and finding the local carer support service, which often knows about respite you did not know existed.',
+    source: CAREGIVER_ALLIANCE,
+    tags: ['caregiver', 'carer', 'caring for', 'mom', 'mum', 'dad', 'parent', 'respite', 'no time that is actually yours'],
+  },
+  {
+    id: 'downtime-on-call',
+    area: 'downtime',
+    title: 'On call, and still recovering',
+    body: 'When the pager can go at any time, the aim is recovery in the gaps rather than a clean evening. Protect the sleep window you do have, hand over cleanly at the end of a rotation, and plan one restful thing for the first day off. Being on call for a month is a real load, and the tiredness after it is normal, not weakness.',
+    source: NIOSH_STRESS,
+    tags: ['on call', 'pager', 'shift', 'recovery', 'work that never really stops', 'tired'],
+  },
+  {
+    id: 'downtime-when-to-see-someone',
+    area: 'downtime',
+    title: 'When stress is more than a busy patch',
+    body: 'If work stress has lasted weeks and comes with crying, dread every morning, trouble sleeping, or feeling unable to cope, it needs more than habits: a doctor or therapist is the right next step, and many employers have a confidential assistance programme. If a drink most days has become hard to stop, the SAMHSA National Helpline on 1-800-662-4357 is free and confidential, 24 hours a day. If there are thoughts of not wanting to be here, call or text 988 now.',
+    source: MAYO_BURNOUT,
+    tags: ['professional', 'safety', 'burnout', 'cope', 'crying', 'drinking most days', 'dread', 'weeks'],
   },
 ];
 

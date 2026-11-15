@@ -1,6 +1,6 @@
 # Steps
 
-Status: built in Phase 3 (web) · Last updated: 2026-11-14
+Status: built in Phase 3 (web) · Last updated: 2026-11-15
 
 ## What it does
 
@@ -18,7 +18,7 @@ A step is one small thing the person agreed with the coach to try, such as "Last
 
 **The coach knows.** Finished steps go into the coach's context with their count and the person's answer, and the prompt tells it to build on what helped and try a different lever when something did not.
 
-**One active step per area.** The accept route refuses a second one with a clear message. The coach is told about the active step and the code drops any new proposal while one is active.
+**One active step per area.** The accept route refuses a second one with a clear message. The coach is told about the active step and the code drops any new proposal while one is active, unless the person asked the coach to swap it: then the proposal carries `replacesStepId`, the card offers "Swap to this step", and accepting marks the old step dropped before creating the new one (2026-11-15; details in `docs/features/coach.md`). Points earned on the dropped step stay.
 
 ## Decisions
 

@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import type { AreaCheckin } from '@/api/client';
 import { useSubmitAreaCheckin } from '@/api/hooks';
 import { useAppAuth } from '@/auth';
+import { goBack } from '@/lib/navigation';
 import { Ask } from '@/components/Ask';
 import { BandPill, GapList, ScoreBar } from '@/components/AreaRating';
 import { Body, Button, Card, ErrorText, Loading, Screen, Small, Subtitle, Title } from '@/components/ui';
@@ -60,7 +61,7 @@ function Questionnaire({ area }: { area: AreaId }) {
 
   const finish = async () => {
     if (answeredCount === 0) {
-      router.back();
+      goBack({ pathname: '/areas/[area]', params: { area } });
       return;
     }
     const data = await submit.mutateAsync(answers);
@@ -69,6 +70,7 @@ function Questionnaire({ area }: { area: AreaId }) {
 
   return (
     <Screen
+      home
       footer={
         <View>
           {last ? (
@@ -82,7 +84,7 @@ function Questionnaire({ area }: { area: AreaId }) {
           )}
           <View className="mt-2 flex-row gap-2">
             <View className="flex-1">
-              <Button title={step === 0 ? 'Not now' : 'Back'} variant="secondary" onPress={() => (step === 0 ? router.back() : setStep(step - 1))} />
+              <Button title={step === 0 ? 'Not now' : 'Back'} variant="secondary" onPress={() => (step === 0 ? goBack({ pathname: '/areas/[area]', params: { area } }) : setStep(step - 1))} />
             </View>
             <View className="flex-1">
               <Button title={last ? 'Skip this one' : 'Skip'} variant="secondary" onPress={skip} />
@@ -109,14 +111,7 @@ function Questionnaire({ area }: { area: AreaId }) {
 function Result({ area, result }: { area: AreaId; result: AreaCheckin }) {
   const preview = rateArea(area, result.answers);
   return (
-    <Screen
-      footer={
-        <View>
-          <Button title={`Open ${AREA_LABELS[area]}`} onPress={() => router.replace({ pathname: '/areas/[area]', params: { area } })} />
-          <Button title="Back home" variant="secondary" className="mt-2" onPress={() => router.replace('/home')} />
-        </View>
-      }
-    >
+    <Screen home footer={<Button title={`Open ${AREA_LABELS[area]}`} onPress={() => router.replace({ pathname: '/areas/[area]', params: { area } })} />}>
       <Small className="mb-2">{AREA_LABELS[area]}</Small>
       <Title>Your rating</Title>
       <Card className="mb-4">

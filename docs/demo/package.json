@@ -1,0 +1,14 @@
+{
+  "name": "inner-weather-demo",
+  "private": true,
+  "description": "Records and composes the Inner Weather demo video. Not part of the app workspaces.",
+  "type": "module",
+  "scripts": {
+    "record": "node record.mjs",
+    "compose": "node compose.mjs",
+    "demo": "node record.mjs && node compose.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.57.0"
+  }
+}

@@ -14,8 +14,8 @@ module.exports = {
         line: '#E7E2DA',
         accent: '#2F855A',
         accentSoft: '#E6F4EC',
-        warn: '#B45309',
-        warnSoft: '#FEF3C7',
+        warn: '#B91C1C',
+        warnSoft: '#FEE2E2',
       },
       fontFamily: {
         sans: ['Geist_400Regular'],

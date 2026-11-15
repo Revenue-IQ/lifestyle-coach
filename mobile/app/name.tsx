@@ -28,6 +28,7 @@ export default function Name() {
 
   return (
     <Screen
+      home
       footer={
         <View>
           <Button title="Save" onPress={save} disabled={!ok} loading={update.isPending} />

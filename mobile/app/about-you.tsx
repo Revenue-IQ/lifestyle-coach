@@ -49,6 +49,7 @@ export default function AboutYou() {
 
   return (
     <Screen
+      home
       footer={
         <View>
           <Button title={hasValue ? 'Save' : 'Save'} onPress={save} disabled={!hasValue} loading={update.isPending} />

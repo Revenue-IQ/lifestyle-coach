@@ -1,13 +1,14 @@
 import { AREA_LABELS, GATE_FIELDS, isAreaId, type AreaId } from '@wellbeing/shared';
-import { Link, Redirect, router, useLocalSearchParams } from 'expo-router';
+import { Link, Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, type CoachMessage, type CoachOpen } from '@/api/client';
 import { useAcceptStep, useMe, useOpenCoach, useSendCoachMessage, useUpdateProfile, type ProfilePatch } from '@/api/hooks';
 import { useAppAuth } from '@/auth';
+import { goBack } from '@/lib/navigation';
 import { Ask } from '@/components/Ask';
-import { Body, Button, Card, ErrorText, Loading, Screen, Small, Subtitle, Title } from '@/components/ui';
+import { Body, Button, Card, ErrorText, HomeLink, Loading, Screen, Small, Subtitle, Title } from '@/components/ui';
 import { AREA_COLORS } from '@/theme';
 
 /**
@@ -50,10 +51,11 @@ function Coach({ area }: { area: AreaId }) {
   if (unavailable) {
     return (
       <Screen
+        home
         footer={
           <View>
             <Button title="Try again" onPress={() => start()} loading={open.isPending} />
-            <Button title="Back" variant="secondary" className="mt-2" onPress={() => router.back()} />
+            <Button title="Back" variant="secondary" className="mt-2" onPress={() => goBack({ pathname: '/areas/[area]', params: { area } })} />
           </View>
         }
       >
@@ -70,7 +72,7 @@ function Coach({ area }: { area: AreaId }) {
   if (open.isPending && !state) return <Loading />;
   if (open.error && !state) {
     return (
-      <Screen footer={<Button title="Try again" onPress={() => start()} />}>
+      <Screen home footer={<Button title="Try again" onPress={() => start()} />}>
         <Title>{AREA_LABELS[area]} coach</Title>
         <ErrorText error={open.error} />
       </Screen>
@@ -81,7 +83,7 @@ function Coach({ area }: { area: AreaId }) {
   if (state.status === 'gates') return <Gates area={area} gates={state.gates} onDone={() => start()} />;
   if (state.status === 'under18') {
     return (
-      <Screen footer={<Button title="Back" variant="secondary" onPress={() => router.back()} />}>
+      <Screen home footer={<Button title="Back" variant="secondary" onPress={() => goBack({ pathname: '/areas/[area]', params: { area } })} />}>
         <Title>{AREA_LABELS[area]} coach</Title>
         <Card>
           <Body>{state.message}</Body>
@@ -120,10 +122,11 @@ function Gates({ area, gates, onDone }: { area: AreaId; gates: ('over18' | 'preg
 
   return (
     <Screen
+      home
       footer={
         <View>
           <Button title="Continue" onPress={save} disabled={!ready} loading={update.isPending} />
-          <Button title="Not now" variant="secondary" className="mt-2" onPress={() => router.back()} />
+          <Button title="Not now" variant="secondary" className="mt-2" onPress={() => goBack({ pathname: '/areas/[area]', params: { area } })} />
           <ErrorText error={update.error} />
         </View>
       }
@@ -170,29 +173,40 @@ function Conversation({
     const text = draft.trim();
     if (!text) return;
     setDraft('');
-    const data = await send.mutateAsync(text);
-    setMessages(data.messages);
+    try {
+      const data = await send.mutateAsync(text);
+      setMessages(data.messages);
+    } catch {
+      setDraft(text); // the error shows under the messages; the words come back to the box
+    }
   };
 
   const makeStep = async (messageId: string) => {
-    await accept.mutateAsync(messageId);
-    setAcceptedId(messageId);
+    try {
+      await accept.mutateAsync(messageId);
+      setAcceptedId(messageId);
+    } catch {
+      // shown by ErrorText
+    }
   };
 
   return (
     <SafeAreaView className="flex-1 bg-paper" edges={['top', 'left', 'right']}>
       <View className="items-center border-b border-line px-4 py-3">
         <View className="w-full max-w-md flex-row items-center justify-between">
-          <Pressable accessibilityRole="button" onPress={() => router.back()} className="py-1 pr-3">
+          <Pressable accessibilityRole="button" onPress={() => goBack({ pathname: '/areas/[area]', params: { area } })} className="py-1 pr-3">
             <Small className="text-accent">Back</Small>
           </Pressable>
           <View className="flex-row items-center">
             <View className="mr-2 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colour.main }} />
             <Text className="font-semibold text-base text-ink">{AREA_LABELS[area]} coach</Text>
           </View>
-          <Pressable accessibilityRole="button" onPress={onStartOver} disabled={starting} className="py-1 pl-3">
-            <Small className="text-accent">Start over</Small>
-          </Pressable>
+          <View className="flex-row items-center">
+            <Pressable accessibilityRole="button" onPress={onStartOver} disabled={starting} className="py-1 pl-3">
+              <Small className="text-accent">Start over</Small>
+            </Pressable>
+            <HomeLink />
+          </View>
         </View>
       </View>
 
@@ -203,7 +217,8 @@ function Conversation({
               key={m.id}
               message={m}
               area={area}
-              canAccept={!activeStep && acceptedId === null}
+              canAccept={acceptedId === null && (!activeStep || m.proposedStep?.replacesStepId === activeStep.id)}
+              replaces={activeStep && m.proposedStep?.replacesStepId === activeStep.id && acceptedId === null ? activeStep : null}
               accepted={acceptedId === m.id || (!!activeStep && !!m.proposedStep && activeStep.title === m.proposedStep.title)}
               onAccept={() => makeStep(m.id)}
               accepting={accept.isPending}
@@ -243,7 +258,7 @@ function Conversation({
           <Button title="Send" className="ml-2 min-h-[48px]" onPress={submit} disabled={!draft.trim()} loading={send.isPending} />
         </View>
         <View className="w-full max-w-md">
-          <Small className="mt-2">Habits only, from our own notes. Not medical advice. Nothing you type earns points, so say what you mean.</Small>
+          <Small className="mt-2">Habits only, from our own notes. Not therapy or a diagnosis. In crisis? Call or text 988. Nothing you type earns points.</Small>
         </View>
       </View>
     </SafeAreaView>
@@ -254,6 +269,7 @@ function MessageBubble({
   message,
   area,
   canAccept,
+  replaces,
   accepted,
   onAccept,
   accepting,
@@ -261,6 +277,8 @@ function MessageBubble({
   message: CoachMessage;
   area: AreaId;
   canAccept: boolean;
+  /** The active step this proposal would take the place of, when the person asked to swap. */
+  replaces: { title: string; doneCount: number; targetCount: number } | null;
   accepted: boolean;
   onAccept: () => void;
   accepting: boolean;
@@ -296,10 +314,17 @@ function MessageBubble({
           <Small className="mt-1">Do it {message.proposedStep.targetCount} times and it counts as done. Each time earns points.</Small>
           {accepted ? (
             <Small className="mt-3 font-semibold text-ink">This is your step now. Log it from the area page.</Small>
+          ) : canAccept && replaces ? (
+            <View>
+              <Small className="mt-2">
+                Takes the place of <Text className="font-semibold text-ink">{replaces.title}</Text> ({replaces.doneCount} of {replaces.targetCount} done). Everything you logged there stays yours.
+              </Small>
+              <Button title="Swap to this step" className="mt-3" onPress={onAccept} loading={accepting} />
+            </View>
           ) : canAccept ? (
             <Button title="Make it my step" className="mt-3" onPress={onAccept} loading={accepting} />
           ) : (
-            <Small className="mt-3">Finish or drop your current step in this area before taking a new one.</Small>
+            <Small className="mt-3">Finish or drop your current step first, or ask the coach to swap it for a different one.</Small>
           )}
         </View>
       ) : null}

@@ -47,6 +47,7 @@ export default function Baseline() {
 
   return (
     <Screen
+      home
       footer={
         <View>
           {last ? (
@@ -92,7 +93,7 @@ export default function Baseline() {
 function Result({ result }: { result: BaselineResult & { quietPoints: number } }) {
   const professional = result.band === 'professional';
   return (
-    <Screen footer={<Button title="Back home" onPress={() => router.replace('/home')} />}>
+    <Screen home>
       {professional ? (
         <Card className="mb-6 border-warn bg-warnSoft">
           <Text className="mb-2 font-semibold text-lg text-ink">A word first</Text>
