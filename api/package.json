@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "kb:load": "tsx --env-file=.env src/knowledge/load.ts"
   },
   "dependencies": {
     "@clerk/backend": "^3.29.0",

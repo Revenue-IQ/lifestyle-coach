@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import { ACTIVITY_OPTIONS, PROFILE_FIELDS, SEX_OPTIONS } from '@wellbeing/shared';
+import { ACTIVITY_OPTIONS, CRISIS_CARD, looksLikeCrisis, PROFILE_FIELDS, SEX_OPTIONS } from '@wellbeing/shared';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -19,6 +19,9 @@ const patchSchema = z.object({
   sex: z.enum(sexValues).nullable().optional(),
   weightKg: z.number().min(PROFILE_FIELDS.weightKg.min).max(PROFILE_FIELDS.weightKg.max).nullable().optional(),
   activityLevel: z.enum(activityValues).nullable().optional(),
+  /** Safety gates, asked before the first coach session. */
+  pregnantOrBreastfeeding: z.boolean().nullable().optional(),
+  conditions: z.string().trim().max(500).nullable().optional(),
 });
 
 export const profile = new Hono<{ Variables: AuthVariables }>().patch(
@@ -62,8 +65,12 @@ export const profile = new Hono<{ Variables: AuthVariables }>().patch(
         sex: updated.sex,
         weightKg: updated.weightKg,
         activityLevel: updated.activityLevel,
+        pregnantOrBreastfeeding: updated.pregnantOrBreastfeeding,
+        conditions: updated.conditions,
       },
       award: summary,
+      /** Plain notice when the conditions line carried crisis language. */
+      notice: patch.conditions !== undefined && looksLikeCrisis(patch.conditions) ? CRISIS_CARD : null,
     });
   },
 );

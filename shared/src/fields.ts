@@ -127,6 +127,30 @@ export const PROFILE_FIELDS = {
 
 export type ProfileFieldId = keyof typeof PROFILE_FIELDS;
 
+/**
+ * Safety gates asked once, right before the first coach session. Plain, no humour.
+ * Over 18 is asked for every area; the others only where they change the advice.
+ */
+export const GATE_FIELDS = {
+  over18: PROFILE_FIELDS.over18,
+  pregnantOrBreastfeeding: {
+    id: 'pregnantOrBreastfeeding',
+    type: 'yesno',
+    label: 'Are you pregnant or breastfeeding?',
+    why: 'Food advice is different then. If yes, the coach keeps to general healthy eating and leaves the specifics to your midwife or doctor.',
+    // Required before the Diet coach opens: the advice changes with the answer.
+    required: true,
+  },
+  conditions: {
+    id: 'conditions',
+    type: 'text',
+    label: 'Anything the coach should know? Optional.',
+    why: 'A condition or medication you want taken into account. The coach will not advise on it, but it will steer clear of it.',
+    placeholder: 'For example: type 2 diabetes, on blood pressure tablets',
+    maxLength: 500,
+  },
+} as const satisfies Record<string, FieldDef>;
+
 /** The optional About you fields, in display order (name has its own quest). */
 export const ABOUT_YOU_FIELD_IDS: ProfileFieldId[] = ['age', 'sex', 'weightKg', 'activityLevel'];
 

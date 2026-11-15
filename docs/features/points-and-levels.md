@@ -18,6 +18,8 @@ Every time a person adds information, the app answers at once: a short banner sa
 | Today's check-in | 5 | three a day earn points |
 | Each About you detail | 5 | once per field, ever |
 | Rating a life area | 25 | once a day per area earns points |
+| Doing a step ("Did it") | 10 | once a day per step earns points |
+| Finishing a rung of a step | 20, then 40, then 80 by rung | once per rung |
 
 Level thresholds (total points): 0, 30, 80, 150, 250, 400, 600, 850, 1150, 1500. Level 1 is where everyone starts.
 

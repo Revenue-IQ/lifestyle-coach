@@ -25,7 +25,7 @@ Skipping a field never costs points, locks a screen or shows a warning. A rating
 
 **Where the code is.** Every field, with its label, type, `why` and `ifSkipped` text: `shared/src/fields.ts`. The `why` property is required by the type. The one component that renders an ask: `mobile/src/components/Ask.tsx`. Screens: `mobile/app/name.tsx` (Name quest, with the random-name button from `shared/src/names.ts`) and `mobile/app/about-you.tsx` (one optional field per step, Save and Skip the same size). API: `PATCH /api/profile` in `api/src/routes/profile.ts`, columns on `users`. Every field filled in for the first time earns points once; editing never removes any.
 
-**Not yet asked anywhere: Over 18.** It is defined and stored, but no screen asks it, because nothing in Phase 1 shows a suggestion. The first life area that produces suggestions asks it right before the first one.
+**Over 18, and two more gates, are asked before the first coach session** (Phase 3). "Are you 18 or over?" for every area, "Pregnant or breastfeeding?" before the Diet coach, and an optional "anything the coach should know" line stored as `conditions`. Defined in `GATE_FIELDS` in `shared/src/fields.ts`, asked once on the coach screen, stored on the profile. See `docs/features/coach.md`.
 
 ## Decisions
 
@@ -43,6 +43,5 @@ Skipping a field never costs points, locks a screen or shows a warning. A rating
 
 ## Future
 
-- Ask "Over 18" before the first suggestion, once a life area produces suggestions.
 - Remove the activity level field when the Movement area can supply it.
 - Pregnancy and health-condition questions, asked plainly at the moment a diet suggestion is about to be shown, as safety gates (phase to be decided).

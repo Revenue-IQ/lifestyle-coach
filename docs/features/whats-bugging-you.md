@@ -30,11 +30,13 @@ The map was redrawn on 2026-11-14 when the Emotions area became Social belonging
 
 **The map.** Each complaint gives 2 points to its first area and 1 point to each "also" area. The card ranks the five areas by total and shows the top ones lit, with the complaints that lit them. "Not sure" lights nothing and points to the wellbeing check-in as the next step. The mapping is a plain table in the app code for Phase 1, so the card works with no backend and no AI call.
 
-**Free text.** One optional line, "in your own words, what feels off". Stored as written. Later phases may send it to the AI model to extract themes; it is never turned into a score.
+**Free text.** One optional line, "in your own words, what feels off". Stored as written. Later phases may send it to the AI model to extract themes; it is never turned into a score. It is crisis-checked (2026-11-14): if it carries crisis language, the result screen shows a plain notice with resources before the card, no humour, and the same notice sits at the top of home while those words are the latest answer.
 
 **Saving.** The answers live on the device until the person creates an account. On "Save this and keep going" the app opens Clerk login (email code). After login the answers are sent to the backend, stored with a date, and the person's first points are awarded for them. Closing the app at the login screen loses nothing.
 
-**Repeatable.** The person can answer again later ("Answer again" on the home screen). Each answer is a dated snapshot, so the app can show how the complaints change over time.
+**Repeatable.** The person can answer again later ("What's bugging you · change" in the home screen's Worth a look header). Each answer is a dated snapshot, so the app can show how the complaints change over time.
+
+**On home, the card is folded into the areas list (2026-11-14).** The same map now flags areas in the "Worth a look" group with a "From: ..." line, instead of a separate card. The card itself still appears on the pre-login "where to look first" screen. See `docs/features/area-ratings.md`.
 
 **Where the code is.** The list and the mapping: `shared/src/complaints.ts` (with tests). The screens: `mobile/app/index.tsx` and `mobile/app/where-to-look.tsx`; the card itself is `mobile/src/components/AreaCard.tsx`. Pre-login answers: `mobile/src/lib/pending.ts`, flushed by `mobile/app/home.tsx`. API: `POST /api/complaints` and `GET /api/complaints` in `api/src/routes/complaints.ts`, table `complaint_snapshots`.
 

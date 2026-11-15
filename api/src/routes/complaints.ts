@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import { COMPLAINT_IDS, FREE_TEXT_FIELD, rankAreas } from '@wellbeing/shared';
+import { COMPLAINT_IDS, CRISIS_CARD, FREE_TEXT_FIELD, looksLikeCrisis, rankAreas } from '@wellbeing/shared';
 import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -56,6 +56,8 @@ export const complaints = new Hono<{ Variables: AuthVariables }>()
           createdAt: row.createdAt.toISOString(),
         },
         award: result,
+        /** Plain notice when the free text carried crisis language. The app shows it before anything else. */
+        notice: looksLikeCrisis(row.freeText) ? CRISIS_CARD : null,
       },
       201,
     );

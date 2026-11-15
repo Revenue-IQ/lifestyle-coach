@@ -48,9 +48,10 @@ async function alreadyAwarded(userId: string, kind: AwardKind, refId?: string): 
  * standing. A capped contribution writes no ledger row: the entry itself is still
  * stored in its own table, it just earned nothing this time.
  */
-export async function award(userId: string, kind: AwardKind, refId?: string): Promise<Award> {
+export async function award(userId: string, kind: AwardKind, refId?: string, pointsOverride?: number): Promise<Award> {
   const before = await standingFor(userId);
   const decision = decideAward(kind, await alreadyAwarded(userId, kind, refId));
+  if (!decision.capped && pointsOverride !== undefined) decision.points = pointsOverride;
   if (!decision.capped) {
     await db.insert(pointsLedger).values({
       userId,

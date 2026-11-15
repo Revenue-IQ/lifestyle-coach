@@ -1,0 +1,16 @@
+# Keep the build context small and secret-free. The context is the repository root.
+.git
+node_modules
+**/node_modules
+**/.expo
+mobile/dist
+mobile/web-build
+**/.env
+**/.env.*
+!**/.env.example
+docs
+.claude
+.github
+*.log
+.DS_Store
+coverage

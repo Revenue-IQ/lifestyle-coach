@@ -5,6 +5,8 @@ Index of every doc in this project. Add a line here whenever a doc is created.
 ## Architecture
 
 - [Tech stack](architecture/tech-stack.md) — the locked technology choices, how the AI and the knowledge base fit in, and why each decision was made.
+- [Knowledge base](architecture/knowledge-base.md) — the guidance notes in our own words with their sources, how they are embedded in pgvector, and how the coach retrieves them.
+- [Deployment](architecture/deployment.md) — one Lightsail instance, two containers, the GitHub Actions pipeline that builds the image and deploys it over SSH, the one-time server setup, and why each piece is the way it is.
 
 ## Project skills
 
@@ -25,3 +27,8 @@ The first-session flow, in the order a person meets it. Built in Phase 1 (web) o
 Phase 2 (web), built 2026-11-14:
 
 - [Area ratings](features/area-ratings.md) — the five "how it usually is" questionnaires, the rating out of 100 with named gaps, the ranked home screen, and why Emotions became Social belonging.
+
+Phase 3 (web), built 2026-11-14:
+
+- [Coach](features/coach.md) — the per-area coach that opens from the rating, talks from the knowledge base, proposes one step, and the safety rules enforced in code.
+- [Steps](features/steps.md) — the small counted steps agreed with the coach, how they earn points, and the one-active-step rule.

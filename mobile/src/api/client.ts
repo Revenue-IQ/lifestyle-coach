@@ -20,6 +20,9 @@ export type Quest = Me['quests'][number];
 export type BaselineResult = InferResponseType<Client['api']['baseline']['$post'], 201>['checkin'];
 export type AreaCheckin = InferResponseType<Client['api']['areas'][':area']['checkins']['$post'], 201>['checkin'];
 export type AreaStanding = Me['areas'][number];
+export type StepItem = Me['steps'][number];
+export type CoachOpen = InferResponseType<Client['api']['areas'][':area']['coach']['$post'], 200>;
+export type CoachMessage = Extract<CoachOpen, { status: 'open' }>['messages'][number];
 
 export class ApiError extends Error {
   constructor(

@@ -6,7 +6,7 @@ Status: built in Phase 2 (web) · Last updated: 2026-11-14
 
 Each of the five life areas (Sleep, Diet, Movement, Gut health, Social belonging) can be rated by answering a short "how it usually is" questionnaire: five to seven questions about a normal week, each with its reason on screen, each skippable. The answers give a rating out of 100, a band (needs attention, could be better, solid) and the gaps in plain words: "Sleep is 22, mostly from under seven hours and caffeine late in the day."
 
-The home screen lists the areas weakest first, so the top one is where to start. Unrated areas sit below the rated ones as an invitation with the points on offer. Every rating is a dated snapshot, so redoing the questionnaire later shows the number moving.
+The home screen is the person's picture so far. The areas sit in two groups: **Worth a look** (anything the complaints point at, and anything rated below solid), weakest first, then **Everything else**. An unrated area that the complaints flagged says why in one line, "From: low mood, anxious or wound up", until it is rated, when its gaps take over. Every rating is a dated snapshot, so redoing the questionnaire later shows the number moving.
 
 ## How it works
 
@@ -14,7 +14,7 @@ The home screen lists the areas weakest first, so the top one is where to start.
 
 **Scoring** (`rateArea` in the same file, tested): the rating is the share of points earned across the questions that were answered, times 100. Skipped questions do not count against anyone. Fewer than three answers marks the rating as rough. Bands: below 45 needs attention, below 70 could be better, 70 and up solid.
 
-**Storage and API:** `POST /api/areas/:area/checkins` stores the answers, the computed score, the number answered and the gaps in `area_checkins`, so history stays stable if the content is tuned later. `GET /api/areas` and the home data (`/api/me`) return every area with its latest rating, sorted weakest first, then unrated areas in display order. `GET /api/areas/:area` returns that area's history. Code: `api/src/routes/areas.ts`.
+**Storage and API:** `POST /api/areas/:area/checkins` stores the answers, the computed score, the number answered and the gaps in `area_checkins`, so history stays stable if the content is tuned later. `GET /api/areas` and the home data (`/api/me`) return every area with its latest rating, its complaint signal (the weight and the complaints behind it, from the same map the first screen uses) and its section, already in display order: rated areas weakest first, then unrated flagged areas strongest signal first, then the rest. The backend decides the grouping so web and mobile agree (`areaStandings` in `api/src/routes/areas.ts`). `GET /api/areas/:area` returns that area's history.
 
 **Points:** 25 per questionnaire, capped at one earning per area per calendar day. Rating two areas in one day earns twice; rating the same one twice does not. The cap type gained a `perRef` flag for this (`api/src/config/game.ts`).
 
@@ -28,7 +28,8 @@ The home screen lists the areas weakest first, so the top one is where to start.
 - **Rate only what was answered** — penalising skipped questions would make Skip cost something, which the asking-for-input rules forbid. Instead the rating is marked rough under three answers and the screen says a few more would firm it up.
 - **Gaps are phrases on answers, not a separate rules engine** — each low answer names its own gap in the content file, so the explanation of a rating is always literally the answers given. Simple to review and impossible to get out of sync.
 - **Score and gaps stored at write time** — the content will be tuned. Storing the computed result keeps a person's history meaning what it meant when they answered.
-- **Ranking on the home screen rather than a single "focus area"** — the complaint card says where it hurts, the ratings say where the habits are weakest; showing all five ranked lets the person see both and choose. A "start here" tag marks the weakest area only when it is in the needs-attention band.
+- **One list that merges both signals, in two groups (changed 2026-11-14)** — the first version showed a separate "where to look first" card above a ranked list, which made the person join the two up themselves. The owner asked for the complaint signal to filter the areas instead, so the card went and each area carries its own "From:" line. "Worth a look" rather than "affected areas", because the complaint map is a guess about where to look, not a finding. A "start here" tag marks the first area only when it is rated needs-attention. A brand-new person with nothing flagged sees one plain list; someone with everything solid sees a kind line instead of an empty group.
+- **Home is the picture, not a section called "picture"** — steps to do first, then the two area groups, then the two-week score as the scoreboard row, then quick add and quests. The About you card became a quest row only, since it already was one.
 - **The same points whatever the answers** — a rating of 22 earns the same 25 points as a rating of 90. Honesty is what the app runs on.
 - **Band thresholds and points live in config** — 45 and 70 are first guesses, set in one place, like every other game number.
 

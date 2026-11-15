@@ -1,0 +1,44 @@
+# Production: one Lightsail instance, two containers. See docs/architecture/deployment.md.
+# On the server this file lives at /opt/wellbeing/docker-compose.yml next to .env (secrets,
+# created once by hand from deploy/env.production.example) and db/init.sql. The GitHub
+# Actions pipeline copies this file and db/init.sql there on every deploy.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wellbeing
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: wellbeing
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wellbeing -d wellbeing"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    # The pipeline pushes :latest and :<commit sha>. Roll back with
+    #   APP_IMAGE=ghcr.io/revenue-iq/lifestyle-coach:<sha> docker compose up -d
+    image: ${APP_IMAGE:-ghcr.io/revenue-iq/lifestyle-coach:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://wellbeing:${POSTGRES_PASSWORD}@db:5432/wellbeing
+      PORT: "8787"
+    ports:
+      - "80:8787"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  dbdata:

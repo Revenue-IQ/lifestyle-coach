@@ -42,6 +42,14 @@ npm run web
 
 The web app is at http://localhost:8081 and the API at http://localhost:8787.
 
+**The coach needs a Gemini key.** Put `GEMINI_API_KEY=...` in `api/.env` (free tier is fine for the demo), then load the knowledge base once:
+
+```bash
+npm run kb:load -w api
+```
+
+Without the key the coach shows "not switched on" and everything else works. The local Postgres needs the pgvector extension (`brew install pgvector`, then `CREATE EXTENSION vector;` in the database); the Docker image has it built in.
+
 **Sign-in without Clerk keys.** With `AUTH_MODE=dev` in `api/.env` and no `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` in `mobile/.env`, the sign-in screen is a developer sign-in: any email works, nothing is sent. To use Clerk, create a free Clerk application with email-code sign-in, put its secret key in `api/.env` (and set `AUTH_MODE` to anything but `dev`) and its publishable key in `mobile/.env`.
 
 ## Checks
@@ -53,3 +61,15 @@ npm test
 ```bash
 npm run typecheck -w api && npm run typecheck -w mobile
 ```
+
+## Deploy
+
+Every push to `main` builds the Docker image in GitHub Actions, pushes it to GitHub's container registry and deploys it over SSH to one Lightsail instance running the app and Postgres (with pgvector) under docker-compose. The public address is plain HTTP on the instance's static IP. One-time server setup, the GitHub secrets it needs, day-to-day commands and every decision are in [docs/architecture/deployment.md](docs/architecture/deployment.md).
+
+To build and run the production image locally (needs Docker):
+
+```bash
+docker build -t wellbeing:local --build-arg EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_... .
+```
+
+Then run `docker-compose.prod.yml` from a folder holding a `.env` made from `deploy/env.production.example` with `APP_IMAGE=wellbeing:local` added, and open http://localhost.

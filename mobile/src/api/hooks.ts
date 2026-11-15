@@ -84,6 +84,92 @@ export function useSubmitAreaCheckin(area: AreaId) {
   });
 }
 
+const stepsKey = ['steps'] as const;
+
+export function useOpenCoach(area: AreaId) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (startOver: boolean) => unwrap(api.api.areas[':area'].coach.$post({ param: { area }, json: { startOver } })),
+  });
+}
+
+export function useSendCoachMessage(conversationId: string | null) {
+  const api = useApi();
+  return useMutation({
+    mutationFn: (content: string) => {
+      if (!conversationId) throw new Error('No conversation open');
+      return unwrap(api.api.coach[':id'].messages.$post({ param: { id: conversationId }, json: { content } }));
+    },
+  });
+}
+
+export function useAcceptStep(conversationId: string | null) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => {
+      if (!conversationId) throw new Error('No conversation open');
+      return unwrap(api.api.coach[':id'].steps.$post({ param: { id: conversationId }, json: { messageId } }));
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: meKey });
+      await qc.invalidateQueries({ queryKey: stepsKey });
+    },
+  });
+}
+
+export function useSteps() {
+  const api = useApi();
+  const { isSignedIn } = useAppAuth();
+  return useQuery({ queryKey: stepsKey, queryFn: () => unwrap(api.api.steps.$get()), enabled: isSignedIn });
+}
+
+export function useLogStep() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const after = useAfterContribution();
+  return useMutation({
+    mutationFn: (stepId: string) => unwrap(api.api.steps[':id'].log.$post({ param: { id: stepId }, json: {} })),
+    onSuccess: async (data) => {
+      await qc.invalidateQueries({ queryKey: stepsKey });
+      await after(data.award);
+    },
+  });
+}
+
+function useStepAction(path: 'reflect' | 'continue' | 'close') {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ stepId, helped }: { stepId: string; helped?: 'yes' | 'a-bit' | 'no' }) => {
+      const param = { id: stepId };
+      if (path === 'reflect') return unwrap(api.api.steps[':id'].reflect.$post({ param, json: { helped: helped ?? 'a-bit' } }));
+      if (path === 'continue') return unwrap(api.api.steps[':id'].continue.$post({ param }));
+      return unwrap(api.api.steps[':id'].close.$post({ param }));
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: stepsKey });
+      await qc.invalidateQueries({ queryKey: meKey });
+    },
+  });
+}
+
+export const useReflectStep = () => useStepAction('reflect');
+export const useContinueStep = () => useStepAction('continue');
+export const useCloseStep = () => useStepAction('close');
+
+export function useDropStep() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (stepId: string) => unwrap(api.api.steps[':id'].drop.$post({ param: { id: stepId } })),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: stepsKey });
+      await qc.invalidateQueries({ queryKey: meKey });
+    },
+  });
+}
+
 export type ProfilePatch = {
   name?: string;
   over18?: boolean | null;
@@ -91,6 +177,8 @@ export type ProfilePatch = {
   sex?: string | null;
   weightKg?: number | null;
   activityLevel?: string | null;
+  pregnantOrBreastfeeding?: boolean | null;
+  conditions?: string | null;
 };
 
 export function useUpdateProfile() {

@@ -3,7 +3,16 @@
  * Points reward the act of adding information, whatever it says.
  * Nothing here ever makes a total go down.
  */
-export const AWARD_KINDS = ['complaints', 'name', 'baseline', 'today', 'profile-field', 'area-checkin'] as const;
+export const AWARD_KINDS = [
+  'complaints',
+  'name',
+  'baseline',
+  'today',
+  'profile-field',
+  'area-checkin',
+  'step-log',
+  'step-done',
+] as const;
 export type AwardKind = (typeof AWARD_KINDS)[number];
 
 /**
@@ -24,6 +33,8 @@ export const GAME = {
     today: 5,
     'profile-field': 5,
     'area-checkin': 25,
+    'step-log': 10,
+    'step-done': 20,
   } satisfies Record<AwardKind, number>,
 
   /** Short "what the points were for" lines, shown with the award. */
@@ -34,6 +45,8 @@ export const GAME = {
     today: "for today's check-in",
     'profile-field': 'for a detail about you',
     'area-checkin': 'for rating an area',
+    'step-log': 'for doing your step',
+    'step-done': 'for finishing a step',
   } satisfies Record<AwardKind, string>,
 
   caps: {
@@ -43,7 +56,21 @@ export const GAME = {
     today: { perDay: 3 },
     'profile-field': { once: true },
     'area-checkin': { perDay: 1, perRef: true },
+    'step-log': { perDay: 1, perRef: true },
+    'step-done': { once: true },
   } satisfies Record<AwardKind, Cap>,
+
+  /** How many times a step is done before it counts as finished, unless the coach says otherwise. */
+  defaultStepTarget: 3,
+  /** The most the coach may propose for a first rung. */
+  maxStepTarget: 7,
+  /**
+   * The ladder a finished step can climb: 3 becomes 7 becomes 21. The first rung is
+   * a trial; the later rungs are where a habit forms. Each rung is its own step row.
+   */
+  stepLadder: [3, 7, 21],
+  /** The finish bonus per rung (first, second, third and beyond): bigger milestone, bigger response. */
+  stepDoneBonusByRung: [20, 40, 80],
 
   /** Total points needed to reach each level. Level 1 is 0 points. */
   levelThresholds: [0, 30, 80, 150, 250, 400, 600, 850, 1150, 1500],

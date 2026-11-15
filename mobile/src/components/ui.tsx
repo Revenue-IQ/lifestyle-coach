@@ -117,6 +117,16 @@ export function ErrorText({ error }: { error: unknown }) {
   return <Text className="mt-3 font-sans text-sm text-warn">{message} Nothing was lost. Try again when you like.</Text>;
 }
 
+/** A plain safety message. No humour, shown before anything else on the screen. */
+export function SafetyNotice({ text }: { text: string }) {
+  return (
+    <View className="mb-5 rounded-2xl border border-warn bg-warnSoft p-4">
+      <Text className="mb-1 font-semibold text-base text-ink">A word first</Text>
+      <Text className="font-sans text-base leading-relaxed text-ink">{text}</Text>
+    </View>
+  );
+}
+
 export function Loading() {
   return (
     <View className="flex-1 items-center justify-center py-16">

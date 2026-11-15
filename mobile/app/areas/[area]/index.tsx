@@ -1,9 +1,10 @@
 import { AREA_BLURBS, AREA_LABELS, isAreaId } from '@wellbeing/shared';
 import { Link, Redirect, router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
-import { useArea, useMe } from '@/api/hooks';
+import { useArea, useMe, useSteps } from '@/api/hooks';
 import { useAppAuth } from '@/auth';
 import { BandPill, GapList, ScoreBar } from '@/components/AreaRating';
+import { StepCard } from '@/components/StepCard';
 import { Body, Button, Card, Loading, Screen, Small, Subtitle, Title } from '@/components/ui';
 import { AREA_COLORS } from '@/theme';
 
@@ -17,24 +18,62 @@ export default function AreaPage() {
   if (!isSignedIn) return <Redirect href="/" />;
   if (!area || !isAreaId(area)) return <Redirect href="/home" />;
 
-  return <AreaBody area={area} points={me.data?.game.areaCheckinPoints ?? 25} />;
+  return (
+    <AreaBody
+      area={area}
+      points={me.data?.game.areaCheckinPoints ?? 25}
+      stepPoints={me.data?.game.stepLogPoints ?? 10}
+      coachEnabled={me.data?.coachEnabled ?? false}
+    />
+  );
 }
 
-function AreaBody({ area, points }: { area: Parameters<typeof useArea>[0]; points: number }) {
+function AreaBody({
+  area,
+  points,
+  stepPoints,
+  coachEnabled,
+}: {
+  area: Parameters<typeof useArea>[0];
+  points: number;
+  stepPoints: number;
+  coachEnabled: boolean;
+}) {
   const q = useArea(area);
+  const stepsQuery = useSteps();
   if (q.isLoading || !q.data) return <Loading />;
 
   const [latest, ...older] = q.data.checkins;
   const colour = AREA_COLORS[area];
+  const areaSteps = (stepsQuery.data?.steps ?? []).filter((s) => s.area === area);
+  // The step shown with its card: the active one, or a finished one whose follow-up question is still open.
+  const activeStep = areaSteps.find((s) => s.status === 'active') ?? areaSteps.find((s) => s.status === 'done' && !s.followUp) ?? null;
+  const finishedSteps = areaSteps.filter((s) => s.status === 'done' && s.id !== activeStep?.id);
 
   return (
     <Screen
       footer={
         <View>
-          <Link href={{ pathname: '/areas/[area]/rate', params: { area } }} asChild>
-            <Button title={latest ? 'Rate it again' : `Rate it · +${points} points`} />
-          </Link>
-          <Button title="Back home" variant="secondary" className="mt-2" onPress={() => router.replace('/home')} />
+          {latest ? (
+            <>
+              <Link href={{ pathname: '/areas/[area]/coach', params: { area } }} asChild>
+                <Button title={activeStep ? 'Talk to the coach' : 'Talk it through with the coach'} />
+              </Link>
+              <Link href={{ pathname: '/areas/[area]/rate', params: { area } }} asChild>
+                <Button title="Rate it again" variant="secondary" className="mt-2" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href={{ pathname: '/areas/[area]/rate', params: { area } }} asChild>
+                <Button title={`Rate it · +${points} points`} />
+              </Link>
+              <Link href={{ pathname: '/areas/[area]/coach', params: { area } }} asChild>
+                <Button title="Talk to the coach first" variant="secondary" className="mt-2" />
+              </Link>
+            </>
+          )}
+          <Button title="Back home" variant="ghost" className="mt-1" onPress={() => router.replace('/home')} />
         </View>
       }
     >
@@ -71,6 +110,36 @@ function AreaBody({ area, points }: { area: Parameters<typeof useArea>[0]; point
         </Card>
       )}
 
+      {activeStep ? (
+        <View className="mb-4">
+          <Text className="mb-2 font-semibold text-base text-ink">Your step right now</Text>
+          <StepCard step={activeStep} points={stepPoints} />
+        </View>
+      ) : latest ? (
+        <Card className="mb-4">
+          <Text className="mb-1 font-semibold text-base text-ink">No step yet</Text>
+          <Small>
+            {coachEnabled
+              ? 'The coach reads the gaps above and helps you pick one small thing to try this week. Nobody fixes all of them at once.'
+              : 'The coach is not switched on yet (the API needs a Gemini key). When it is, it reads the gaps above and helps you pick one small thing to try.'}
+          </Small>
+        </Card>
+      ) : null}
+
+      {finishedSteps.length > 0 ? (
+        <View className="mb-4">
+          <Text className="mb-2 font-semibold text-base text-ink">Steps you finished</Text>
+          {finishedSteps.map((s) => (
+            <View key={s.id} className="mb-1 flex-row items-center justify-between rounded-2xl border border-line bg-card px-4 py-3">
+              <Small className="flex-1 pr-2">{s.title}</Small>
+              <Small>
+                {s.targetCount} times{s.helped === 'yes' ? ' · helped' : s.helped === 'a-bit' ? ' · helped a bit' : s.helped === 'no' ? ' · did not help' : ''}
+              </Small>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {older.length > 0 ? (
         <View className="mb-4">
           <Text className="mb-2 font-semibold text-base text-ink">Earlier ratings</Text>
@@ -87,7 +156,7 @@ function AreaBody({ area, points }: { area: Parameters<typeof useArea>[0]; point
       ) : null}
 
       <Small>
-        This rating comes from how you described a normal week, so it is only as sharp as the answers. Logging real days later will make it sharper, and a coach for this area is coming next.
+        This rating comes from how you described a normal week, so it is only as sharp as the answers. Logging real days later will make it sharper.
       </Small>
     </Screen>
   );

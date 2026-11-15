@@ -4,7 +4,8 @@ import { View } from 'react-native';
 import { useSubmitComplaints } from '@/api/hooks';
 import { useAppAuth } from '@/auth';
 import { AreaCard } from '@/components/AreaCard';
-import { Button, ErrorText, Loading, Screen, Small, Subtitle, Title } from '@/components/ui';
+import { Button, ErrorText, Loading, SafetyNotice, Screen, Small, Subtitle, Title } from '@/components/ui';
+import { CRISIS_CARD, looksLikeCrisis } from '@wellbeing/shared';
 import { clearPending, loadPending, type PendingComplaints } from '@/lib/pending';
 
 /** The instant result, and the one place that asks the person to make an account. */
@@ -44,6 +45,8 @@ export default function WhereToLook() {
         </View>
       }
     >
+      {looksLikeCrisis(pending.freeText) ? <SafetyNotice text={CRISIS_CARD} /> : null}
+
       <Title>Here's a first look</Title>
       <Subtitle>
         Based on what you picked, these are the areas most often behind it. Nothing here is a verdict. It's a starting point.
