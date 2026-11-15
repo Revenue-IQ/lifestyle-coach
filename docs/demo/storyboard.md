@@ -30,6 +30,8 @@ The current edit brings the 3 min 25 s recording to 1 min 53 s. The owner asked 
 
 **Sound.** `audio` in `edits.json` picks the bed. `beat` (the default) is made by ffmpeg itself from one expression, so it needs no file and no licence: a plucked arpeggio up and down C, A minor, F and G at 104 BPM, a round bass every two beats, a soft kick on one and three, a quiet hi-hat on the eighths and a faint pad, with a short echo for room. `drone` is the first, slower version (a low G and D with a bowl strike every 22 seconds), kept because it was the owner's first ask before "something happening" replaced it. A path to a music file uses that file instead, looped. Every option is levelled to -19 LUFS, fades in over 1.5 s and out over the last 4 s, and is cut at the picture's length. `none` leaves the video silent.
 
+**Replacing part of the footage.** `node record.mjs --retake <scene-id>` re-records the opening scenes up to that one into `build/retake.webm`, keeping the same holds so the scene starts match the original (it warns if any drifts more than 0.3 s), without touching the account or the main recording. `"retake": { "clip": "build/retake.webm", "until": 24.0 }` in `edits.json` then makes `compose.mjs` take everything before that recorded second from the re-take and everything after from the original. The current video uses a re-take of scenes 1 to 4 (recorded 2026-11-15 after the brand header landed on the first page), spliced at the start of the sign-in scene, where the unchanged "where to look" page is on screen in both takes. The sign-in page's own small lockup is not in the video: that scene is original footage, as asked.
+
 Useful while editing:
 
 - `node record.mjs --stop-before coach` records everything up to the coach with no model call.
@@ -56,7 +58,7 @@ Title card, 4.5 s recorded, 2.5 s in the cut: the brand mark (the sun clearing a
 
 | # | Flow | On screen | Bubble | Hold |
 |---|---|---|---|---|
-| 1 | What's bugging you | Round one, "How have you been feeling?" | It starts with how you feel | 4.5 s |
+| 1 | What's bugging you | Round one, "How have you been feeling?", under the brand header (mark, name, tagline, hairline) | It starts with how you feel | 4.5 s |
 | 2 | | Taps Tired all the time, Can't sleep well, Stressed or worried a lot | Tap whatever fits. No account yet. | 6 s |
 | 3 | | Next; round two, taps On my phone late at night, Lots of coffee or sugar, Work never really stops | Then what your days are like | 6.5 s |
 | 4 | | Show me where to look; the "Where to look first" card (Sleep, Downtime, ...) | Where to look first, not a verdict | 7 s |

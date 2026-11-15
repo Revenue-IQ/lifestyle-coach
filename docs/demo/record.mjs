@@ -9,6 +9,8 @@
  *   node record.mjs --stop-before coach   everything up to the coach, no model call
  *   node record.mjs --only steps          test the step ladder on a planted step
  *   node record.mjs --assets-only         redraw bubbles and cards after editing build/timeline.json
+ *   node record.mjs --retake where-to-look   re-record the scenes up to that one into build/retake.webm,
+ *                                         for compose.mjs to splice in (see "retake" in edits.json)
  *
  * Needs the API (8787) and the web app (8081) running with AUTH_MODE=dev, and
  * psql on the path to reset the demo account. Nothing here reads api/.env.
@@ -35,6 +37,7 @@ const flag = (name) => {
 const STOP_BEFORE = flag('--stop-before');
 const ONLY = flag('--only');
 const ASSETS_ONLY = args.includes('--assets-only'); // redraw cards and bubbles from the last timeline, no recording
+const RETAKE = flag('--retake'); // re-record the opening scenes up to this one; the main timeline and assets stay
 
 /** Layout shared with compose.mjs through timeline.json. */
 export const LAYOUT = {
@@ -468,9 +471,19 @@ async function main() {
   }
   await checkServers();
   fs.mkdirSync(BUILD, { recursive: true });
-  resetDemoAccount();
+  if (!RETAKE) resetDemoAccount();
 
   let scenes = SCENES;
+  if (RETAKE) {
+    const i = scenes.findIndex((s) => s.id === RETAKE);
+    if (i === -1) throw new Error(`No scene called ${RETAKE}`);
+    scenes = scenes.slice(0, i + 1);
+    const lastScene = scenes.at(-1);
+    if (scenes.some((s) => s.id === 'first-points') || scenes.some((s) => s.id === 'coach-opens')) {
+      throw new Error('A retake stops before sign-in completes: the account state and the coach footage must stay as recorded.');
+    }
+    console.log(`Retake of ${scenes.length} scenes, up to ${lastScene.id}.`);
+  }
   if (STOP_BEFORE) {
     const i = scenes.findIndex((s) => s.id === STOP_BEFORE || s.flow === STOP_BEFORE);
     if (i === -1) throw new Error(`No scene or flow called ${STOP_BEFORE}`);
@@ -510,6 +523,9 @@ async function main() {
   });
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
+  // Warm the dev server's bundle first, so the first scene's load does not eat into its hold.
+  await page.goto(`${WEB}/`);
+  await page.getByText('How have you been feeling?').first().waitFor({ timeout: 120_000 });
   // Sync marker: a black page that turns white the moment the clock starts.
   // compose.mjs finds that flash in the recording and lines the timeline up with it.
   await page.setContent('<html><body style="margin:0;background:#000"></body></html>');
@@ -538,6 +554,19 @@ async function main() {
     const video = page.video();
     await context.close();
     const recorded = await video.path();
+    if (RETAKE) {
+      fs.renameSync(recorded, path.join(BUILD, 'retake.webm'));
+      fs.writeFileSync(path.join(BUILD, 'retake-timeline.json'), JSON.stringify({ closedAt, scenes: timeline }, null, 2));
+      // The bubbles are timed to the original; the retake must keep the same scene starts.
+      const original = JSON.parse(fs.readFileSync(path.join(BUILD, 'timeline.json'), 'utf8')).scenes;
+      for (const scene of timeline) {
+        const was = original.find((o) => o.id === scene.id);
+        if (was && Math.abs(was.start - scene.start) > 0.3) console.warn(`Warning: ${scene.id} starts at ${scene.start.toFixed(1)}s, was ${was.start.toFixed(1)}s`);
+      }
+      await browser.close();
+      console.log(`Retake saved to build/retake.webm; point edits.json at it: "retake": { "clip": "build/retake.webm", "until": ${timeline.at(-1)?.end.toFixed(1)} }`);
+      return;
+    }
     fs.renameSync(recorded, path.join(BUILD, 'screen.webm'));
     fs.writeFileSync(
       path.join(BUILD, 'timeline.json'),
@@ -546,6 +575,7 @@ async function main() {
     await renderAssets(browser, timeline);
     await browser.close();
   }
+  if (RETAKE) return;
   const calls = scenes.some((s) => s.id === 'coach-opens') ? 2 + ctx.extraCalls : 0;
   console.log(`\nRecorded ${timeline.length} scenes, ${timeline.at(-1)?.end.toFixed(0) ?? 0}s of screen, ${calls} live coach call(s).`);
 }

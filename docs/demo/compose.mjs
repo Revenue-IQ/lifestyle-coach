@@ -14,6 +14,8 @@
  *     "cuts": { "scene-id": [[3.2, 8.9], [0, 1.5, "still"]] },   stretches inside a scene, from its start
  *     "speed": 1.25,                                 footage and bubbles this much faster
  *     "audio": "beat" | "drone" | "none" | "path/to/music.mp3",   the sound bed (default: the synthesized beat)
+ *     "retake": { "clip": "build/retake.webm", "until": 24.0 },   footage before that recorded second comes
+ *                                                    from a re-take of the opening scenes (record.mjs --retake)
  *     "title": 4.5, "closing": 7 }                  card lengths, optional
  * A join where the screen changes gets the same white dip as a change of flow; a cut marked
  * "still" (or the trimmed end of a scene) joins identical frames and gets none.
@@ -44,12 +46,19 @@ const edits = !args.includes('--no-edits') && fs.existsSync(editsFile) ? JSON.pa
 const title = { ...tl.title, seconds: edits.title ?? tl.title.seconds };
 const closing = { ...tl.closing, seconds: edits.closing ?? tl.closing.seconds };
 
-// record.mjs starts its clock the moment a black page turns white; find that flash in the recording.
-const detect = spawnSync('ffmpeg', ['-hide_banner', '-i', screen, '-vf', 'blackdetect=d=0.3:pix_th=0.10', '-an', '-f', 'null', '-'], { encoding: 'utf8' });
-const flash = detect.stderr.match(/black_end:\s*([\d.]+)/);
-if (!flash) throw new Error('Could not find the sync flash at the start of build/screen.webm');
-const zero = Number(flash[1]);
+// record.mjs starts its clock the moment a black page turns white; find that flash in a recording.
+function syncFlash(file) {
+  const detect = spawnSync('ffmpeg', ['-hide_banner', '-i', file, '-vf', 'blackdetect=d=0.3:pix_th=0.10', '-an', '-f', 'null', '-'], { encoding: 'utf8' });
+  const flash = detect.stderr.match(/black_end:\s*([\d.]+)/);
+  if (!flash) throw new Error(`Could not find the sync flash at the start of ${file}`);
+  return Number(flash[1]);
+}
+const zero = syncFlash(screen);
 const recorded = tl.closedAt; // seconds of recording after the flash that the timeline covers
+
+// A re-take of the opening scenes replaces the footage before `until`; its clock matches the original's.
+const retake = edits.retake ? { file: path.resolve(ROOT, edits.retake.clip), until: edits.retake.until } : null;
+if (retake) retake.zero = syncFlash(retake.file);
 
 // ---------------------------------------------------------------------------
 // The edit: which stretches of the recording are taken out, and the new clock.
@@ -131,9 +140,13 @@ function pngSize(file) {
 
 const inputs = ['-framerate', String(FPS), '-loop', '1', '-t', n(title.seconds), '-i', path.join(BUILD, 'title.png')];
 inputs.push('-i', screen);
+if (retake) inputs.push('-i', retake.file);
 inputs.push('-framerate', String(FPS), '-loop', '1', '-t', n(closing.seconds), '-i', path.join(BUILD, 'closing.png'));
 inputs.push('-framerate', String(FPS), '-loop', '1', '-i', path.join(BUILD, 'frame.png'));
-const FIRST_BUBBLE = 4;
+const RETAKE_INPUT = retake ? 2 : null;
+const CLOSING_INPUT = retake ? 3 : 2;
+const FRAME_INPUT = CLOSING_INPUT + 1;
+const FIRST_BUBBLE = FRAME_INPUT + 1;
 for (const s of scenes) inputs.push('-framerate', String(FPS), '-loop', '1', '-i', path.join(BUILD, `bubble-${s.id}.png`));
 
 const f = [];
@@ -141,12 +154,26 @@ const { phone, bubble, colors } = layout;
 const bg = colors.paper;
 
 // The kept stretches of the recording, in a row, on the paper canvas, under the frame.
+// A stretch that crosses the re-take boundary is split so each piece has one source.
+const pieces = [];
+for (const [a, b] of kept) {
+  if (retake && a < retake.until && b > retake.until) pieces.push([a, retake.until], [retake.until, b]);
+  else pieces.push([a, b]);
+}
+const sourceOf = ([a]) => (retake && a < retake.until ? { input: RETAKE_INPUT, zero: retake.zero } : { input: 1, zero });
 f.push(`color=c=${bg}:s=${layout.canvas.width}x${layout.canvas.height}:r=${FPS}:d=${n(duration)}[bg]`);
-f.push(`[1:v]split=${kept.length}${kept.map((_, i) => `[p${i}]`).join('')}`);
-kept.forEach(([a, b], i) => f.push(`[p${i}]trim=start=${n(zero + a)}:end=${n(zero + b)},setpts=PTS-STARTPTS[g${i}]`));
-f.push(`${kept.map((_, i) => `[g${i}]`).join('')}concat=n=${kept.length}:v=1:a=0,setpts=PTS/${n(speed)},fps=${FPS},scale=${phone.width}:${phone.height}[screen]`);
+for (const input of retake ? [1, RETAKE_INPUT] : [1]) {
+  const mine = pieces.map((p, i) => [p, i]).filter(([p]) => sourceOf(p).input === input);
+  if (mine.length === 0) continue;
+  f.push(`[${input}:v]split=${mine.length}${mine.map(([, i]) => `[p${i}]`).join('')}`);
+}
+pieces.forEach(([a, b], i) => {
+  const src = sourceOf([a, b]);
+  f.push(`[p${i}]trim=start=${n(src.zero + a)}:end=${n(src.zero + b)},setpts=PTS-STARTPTS[g${i}]`);
+});
+f.push(`${pieces.map((_, i) => `[g${i}]`).join('')}concat=n=${pieces.length}:v=1:a=0,setpts=PTS/${n(speed)},fps=${FPS},scale=${phone.width}:${phone.height}[screen]`);
 f.push(`[bg][screen]overlay=${phone.x}:${phone.y}:shortest=1[c0]`);
-f.push(`[c0][3:v]overlay=0:0:shortest=1[c1]`);
+f.push(`[c0][${FRAME_INPUT}:v]overlay=0:0:shortest=1[c1]`);
 
 // One bubble at a time, fading in and out, vertically centred beside the phone.
 let last = 'c1';
@@ -175,7 +202,7 @@ f.push(`[${last}]fade=t=in:st=0:d=0.6:c=white,fade=t=out:st=${n(duration - 0.6)}
 
 // Title and closing cards, then everything in a row.
 f.push(`[0:v]scale=${layout.canvas.width}:${layout.canvas.height},fade=t=in:st=0:d=0.6:c=white,fade=t=out:st=${n(title.seconds - 0.6)}:d=0.6:c=white,format=yuv420p[t]`);
-f.push(`[2:v]scale=${layout.canvas.width}:${layout.canvas.height},fade=t=in:st=0:d=0.6:c=white,fade=t=out:st=${n(closing.seconds - 0.8)}:d=0.8:c=white,format=yuv420p[e]`);
+f.push(`[${CLOSING_INPUT}:v]scale=${layout.canvas.width}:${layout.canvas.height},fade=t=in:st=0:d=0.6:c=white,fade=t=out:st=${n(closing.seconds - 0.8)}:d=0.8:c=white,format=yuv420p[e]`);
 f.push(`[t][main][e]concat=n=3:v=1:a=0,format=yuv420p[out]`);
 
 // The sound bed. The default is a calm drone made here, so it needs no file and no licence:
@@ -236,7 +263,7 @@ if (audio === 'beat') {
 
 const graph = path.join(BUILD, 'filter.txt');
 fs.writeFileSync(graph, f.join(';\n'));
-fs.writeFileSync(path.join(BUILD, 'cut.json'), JSON.stringify({ kept, duration, scenes, cutTimes }, null, 2));
+fs.writeFileSync(path.join(BUILD, 'cut.json'), JSON.stringify({ kept, pieces, retake, duration, scenes, cutTimes }, null, 2));
 
 const previewIndex = args.indexOf('--preview'); // --preview 12: only the first 12 seconds, fast encode, for checking a cut
 const preview = previewIndex === -1 ? null : Number(args[previewIndex + 1]);
