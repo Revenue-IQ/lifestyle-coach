@@ -86,7 +86,11 @@ Log out and in again so the group change applies, then `docker ps` should answer
 
 ### 3. The deploy key
 
-On your Mac, make a key pair used only by the pipeline:
+Two options. The pipeline needs a private key that `ubuntu` on the instance accepts.
+
+**Option A, the instance's default key (quickest).** Lightsail created a key pair with the instance and its public half is already on it. Download the private half from **Account → SSH keys** (a `.pem` file), keep it at `~/.ssh/lightsail.pem` with `chmod 400`, and its contents become the `LIGHTSAIL_SSH_KEY` secret. Cost: that key is also your own admin key for every instance in the region that uses the default pair, so revoking the pipeline later means rotating it everywhere. Fine for a demo.
+
+**Option B, a dedicated key (cleaner revocation).** On your Mac, make a key pair used only by the pipeline:
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/wellbeing-deploy -C wellbeing-deploy -N ""
@@ -98,7 +102,7 @@ Print the public half with `cat ~/.ssh/wellbeing-deploy.pub`, then in the instan
 echo 'ssh-ed25519 AAAA... wellbeing-deploy' >> ~/.ssh/authorized_keys
 ```
 
-Check from the Mac: `ssh -i ~/.ssh/wellbeing-deploy ubuntu@<static-ip> docker ps`.
+Check from the Mac: `ssh -i ~/.ssh/wellbeing-deploy ubuntu@<static-ip> docker ps`. Revoking it later is deleting that one line from `authorized_keys`.
 
 ### 4. The server folder
 
@@ -117,7 +121,7 @@ Nothing else is typed on the server. The compose file, `db/init.sql` and `.env` 
 | Kind | Name | Value |
 |---|---|---|
 | Secret | `LIGHTSAIL_HOST` | the static IP |
-| Secret | `LIGHTSAIL_SSH_KEY` | the whole private key file: `cat ~/.ssh/wellbeing-deploy` |
+| Secret | `LIGHTSAIL_SSH_KEY` | the whole private key file: `~/.ssh/lightsail.pem` (option A) or `~/.ssh/wellbeing-deploy` (option B) |
 | Secret | `POSTGRES_PASSWORD` | letters and digits, made up once. Never change it afterwards: Postgres keeps the password its volume was created with |
 | Secret | `CLERK_SECRET_KEY` | Clerk's `sk_test_...` key. Required unless `AUTH_MODE` is `dev` |
 | Secret | `GEMINI_API_KEY` | the Gemini key. Empty switches the coach off |
