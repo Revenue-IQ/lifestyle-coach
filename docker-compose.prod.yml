@@ -1,7 +1,8 @@
 # Production: one Lightsail instance, two containers. See docs/architecture/deployment.md.
-# On the server this file lives at /opt/wellbeing/docker-compose.yml next to .env (secrets,
-# created once by hand from deploy/env.production.example) and db/init.sql. The GitHub
-# Actions pipeline copies this file and db/init.sql there on every deploy.
+# On the server this file lives at /opt/wellbeing/docker-compose.yml next to .env and db/init.sql.
+# The GitHub Actions pipeline writes all three there on every deploy: .env from the repository
+# secrets, the other two from the repository. For a local run, deploy/env.production.example
+# shows the .env shape.
 services:
   db:
     image: pgvector/pgvector:pg17

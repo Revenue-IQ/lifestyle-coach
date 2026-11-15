@@ -1,10 +1,16 @@
 # Builds the app image, pushes it to GitHub's container registry, then deploys it to the
 # Lightsail instance over SSH. Why it is shaped this way: docs/architecture/deployment.md.
 #
-# Repository settings this needs:
-#   Secrets:   LIGHTSAIL_HOST (the static IP), LIGHTSAIL_SSH_KEY (private key of the deploy key pair)
+# Repository settings this needs (Settings → Secrets and variables → Actions):
+#   Secrets:   LIGHTSAIL_HOST (the static IP), LIGHTSAIL_SSH_KEY (private key of the deploy key pair),
+#              POSTGRES_PASSWORD (letters and digits; never change it after the first deploy),
+#              CLERK_SECRET_KEY (required unless AUTH_MODE is dev), GEMINI_API_KEY (optional; empty
+#              switches the coach off)
 #   Variables: EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY (Clerk's publishable key; leave unset for the
-#              built-in dev sign-in), LIGHTSAIL_USER (optional, default ubuntu)
+#              built-in dev sign-in), AUTH_MODE (optional, default clerk), LIGHTSAIL_USER (optional,
+#              default ubuntu), EXTRA_ENV (optional extra lines for the server env file, for example
+#              GEMINI_TEXT_MODEL overrides)
+# The deploy job writes /opt/wellbeing/.env on the server from these on every run.
 name: Deploy
 
 on:
@@ -69,10 +75,16 @@ jobs:
         env:
           HOST: ${{ secrets.LIGHTSAIL_HOST }}
           KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          PGPASS: ${{ secrets.POSTGRES_PASSWORD }}
+          CLERK: ${{ secrets.CLERK_SECRET_KEY }}
+          AUTH_MODE: ${{ vars.AUTH_MODE || 'clerk' }}
         run: |
           ok=1
-          [ -n "$HOST" ] || { echo "::error::Repository secret LIGHTSAIL_HOST is not set (Settings → Secrets and variables → Actions → Repository secrets)"; ok=0; }
-          [ -n "$KEY" ] || { echo "::error::Repository secret LIGHTSAIL_SSH_KEY is not set (Settings → Secrets and variables → Actions → Repository secrets)"; ok=0; }
+          where="(Settings → Secrets and variables → Actions → Repository secrets)"
+          [ -n "$HOST" ] || { echo "::error::Repository secret LIGHTSAIL_HOST is not set $where"; ok=0; }
+          [ -n "$KEY" ] || { echo "::error::Repository secret LIGHTSAIL_SSH_KEY is not set $where"; ok=0; }
+          [ -n "$PGPASS" ] || { echo "::error::Repository secret POSTGRES_PASSWORD is not set $where"; ok=0; }
+          if [ "$AUTH_MODE" != dev ] && [ -z "$CLERK" ]; then echo "::error::Repository secret CLERK_SECRET_KEY is not set and AUTH_MODE is not dev $where"; ok=0; fi
           [ "$ok" = 1 ]
 
       - name: Set up SSH
@@ -93,6 +105,22 @@ jobs:
           ssh lightsail 'mkdir -p /opt/wellbeing/db'
           scp docker-compose.prod.yml lightsail:/opt/wellbeing/docker-compose.yml
           scp deploy/db/init.sql lightsail:/opt/wellbeing/db/init.sql
+
+      - name: Write the server env file from the repository secrets
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AUTH_MODE: ${{ vars.AUTH_MODE || 'clerk' }}
+          EXTRA_ENV: ${{ vars.EXTRA_ENV }}
+        run: |
+          {
+            printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
+            printf 'AUTH_MODE=%s\n' "$AUTH_MODE"
+            printf 'CLERK_SECRET_KEY=%s\n' "$CLERK_SECRET_KEY"
+            printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY"
+            [ -z "$EXTRA_ENV" ] || printf '%s\n' "$EXTRA_ENV"
+          } | ssh lightsail 'umask 077 && cat > /opt/wellbeing/.env'
 
       - name: Log the server in to the registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | ssh lightsail "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"

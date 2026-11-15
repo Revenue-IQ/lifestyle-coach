@@ -13,7 +13,7 @@ How the Wellbeing app reaches a public address: what runs on the server, how a p
   - `app` — the API and the web app in one image. The API serves Expo's web export from the same origin, so the app calls `/api/...` on the address it was loaded from.
   - `db` — Postgres 17 with pgvector (`pgvector/pgvector:pg17`), its data on a named Docker volume so it survives redeploys.
 - **The image** is built by GitHub Actions and stored in GitHub's container registry as `ghcr.io/revenue-iq/lifestyle-coach`, tagged `latest` and with the commit SHA.
-- **The pipeline** (`.github/workflows/deploy.yml`) runs on every push to `main`: build and push the image, then SSH into the instance, copy the compose file, pull the image, restart, push the database schema, and check `/health`.
+- **The pipeline** (`.github/workflows/deploy.yml`) runs on every push to `main`: build and push the image, then SSH into the instance, copy the compose file, write the server's env file from the repository secrets, pull the image, restart, push the database schema, and check `/health`.
 - **The address** is plain HTTP on the static IP (`http://<static-ip>`). No domain, no certificate, by the owner's decision for the demo.
 
 Files in the repository:
@@ -24,7 +24,7 @@ Files in the repository:
 | `.dockerignore` | Keeps `node_modules`, `.git`, every `.env` and the docs out of the build context. |
 | `docker-compose.prod.yml` | The two services. Copied to the server as `docker-compose.yml` on every deploy. |
 | `deploy/db/init.sql` | `CREATE EXTENSION IF NOT EXISTS vector`, run by Postgres when its volume is first created. |
-| `deploy/env.production.example` | Template for the server's `.env` (secrets). The filled-in file lives only on the server. |
+| `deploy/env.production.example` | The shape of the server's `.env`, for running the production compose file locally. In production the pipeline writes that file. |
 | `.github/workflows/deploy.yml` | The pipeline. |
 
 ## How it works
@@ -44,9 +44,9 @@ Files in the repository:
 
 1. Push to `main` (or run the workflow by hand from the Actions tab).
 2. **Build job:** logs in to the registry with the job's own token, builds the image with the build arguments above, pushes `:latest` and `:<sha>`. Layers are cached in GitHub Actions' cache, so an unchanged dependency set does not reinstall.
-3. **Deploy job:** writes the deploy key from the `LIGHTSAIL_SSH_KEY` secret, SSHes to `LIGHTSAIL_HOST` as `ubuntu`, copies `docker-compose.prod.yml` and `deploy/db/init.sql` into `/opt/wellbeing`, logs the server in to the registry with the job token, runs `docker compose pull app && docker compose up -d`, then `npm run db:push -w api -- --force` inside the app container, then polls `http://localhost/health` and prints the app's logs if it does not answer. Finally it prunes old images so the small disk does not fill.
+3. **Deploy job:** checks the secrets exist and fails with the missing name if not, writes the deploy key from the `LIGHTSAIL_SSH_KEY` secret, SSHes to `LIGHTSAIL_HOST` as `ubuntu`, copies `docker-compose.prod.yml` and `deploy/db/init.sql` into `/opt/wellbeing`, writes `/opt/wellbeing/.env` from the `POSTGRES_PASSWORD`, `CLERK_SECRET_KEY` and `GEMINI_API_KEY` secrets (plus `AUTH_MODE` and any `EXTRA_ENV` lines from the repository variables), logs the server in to the registry with the job token, runs `docker compose pull app && docker compose up -d`, then `npm run db:push -w api -- --force` inside the app container, then polls `http://localhost/health` and prints the app's logs if it does not answer. Finally it prunes old images so the small disk does not fill.
 
-The server's `.env` is never touched by the pipeline. `DATABASE_URL` is assembled in the compose file from `POSTGRES_PASSWORD`, so the password is typed once.
+Every secret lives in GitHub; the server holds only what the last deploy wrote. `DATABASE_URL` is assembled in the compose file from `POSTGRES_PASSWORD`, so the password exists in one secret.
 
 ### What is not automatic
 
@@ -100,7 +100,7 @@ echo 'ssh-ed25519 AAAA... wellbeing-deploy' >> ~/.ssh/authorized_keys
 
 Check from the Mac: `ssh -i ~/.ssh/wellbeing-deploy ubuntu@<static-ip> docker ps`.
 
-### 4. The server folder and its secrets
+### 4. The server folder
 
 On the instance:
 
@@ -108,7 +108,7 @@ On the instance:
 sudo mkdir -p /opt/wellbeing/db && sudo chown -R ubuntu:ubuntu /opt/wellbeing
 ```
 
-Create `/opt/wellbeing/.env` from `deploy/env.production.example` (`nano /opt/wellbeing/.env`, paste the template, fill in `POSTGRES_PASSWORD`, `CLERK_SECRET_KEY`, `GEMINI_API_KEY`), then `chmod 600 /opt/wellbeing/.env`. The compose file and `db/init.sql` arrive with the first deploy.
+Nothing else is typed on the server. The compose file, `db/init.sql` and `.env` all arrive with the first deploy.
 
 ### 5. GitHub repository settings
 
@@ -118,8 +118,15 @@ Create `/opt/wellbeing/.env` from `deploy/env.production.example` (`nano /opt/we
 |---|---|---|
 | Secret | `LIGHTSAIL_HOST` | the static IP |
 | Secret | `LIGHTSAIL_SSH_KEY` | the whole private key file: `cat ~/.ssh/wellbeing-deploy` |
+| Secret | `POSTGRES_PASSWORD` | letters and digits, made up once. Never change it afterwards: Postgres keeps the password its volume was created with |
+| Secret | `CLERK_SECRET_KEY` | Clerk's `sk_test_...` key. Required unless `AUTH_MODE` is `dev` |
+| Secret | `GEMINI_API_KEY` | the Gemini key. Empty switches the coach off |
 | Variable | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's `pk_test_...` key. Leave unset to build with the app's own dev sign-in |
+| Variable | `AUTH_MODE` | optional, default `clerk`; `dev` for the built-in sign-in |
 | Variable | `LIGHTSAIL_USER` | optional, default `ubuntu` |
+| Variable | `EXTRA_ENV` | optional extra lines for the server env file, for example `GEMINI_TEXT_MODEL=...` |
+
+From a Mac with the GitHub CLI, each is one command, for example `gh secret set GEMINI_API_KEY --repo Revenue-IQ/lifestyle-coach --body "..."` and `gh secret set LIGHTSAIL_SSH_KEY --repo Revenue-IQ/lifestyle-coach < ~/.ssh/wellbeing-deploy`.
 
 The image registry needs no setting: the workflow uses the job's own token, and the package is created on the first push, private and linked to the repository.
 
@@ -131,8 +138,9 @@ Commit and push to `main`. Watch the **Actions** tab. When the deploy job is gre
 
 - **Logs:** `cd /opt/wellbeing && docker compose logs -f app`
 - **Roll back:** `APP_IMAGE=ghcr.io/revenue-iq/lifestyle-coach:<sha> docker compose up -d` in `/opt/wellbeing`.
-- **Switch to the built-in dev sign-in:** remove the `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` variable in GitHub, set `AUTH_MODE=dev` in the server's `.env`, re-run the workflow. The app then shows the developer sign-in, where any email is accepted.
-- **Change a secret:** edit `/opt/wellbeing/.env`, then `docker compose up -d` there.
+- **Switch to the built-in dev sign-in:** remove the `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` variable in GitHub, set the `AUTH_MODE` variable to `dev`, re-run the workflow. The app then shows the developer sign-in, where any email is accepted.
+- **Change a secret:** change it in GitHub and re-run the workflow. The deploy rewrites the server's env file and restarts the app.
+- **Rebuild the server from nothing:** steps 1 to 4 above, then re-run the workflow. Nothing else was ever on it.
 
 ## Decisions
 
@@ -141,7 +149,7 @@ Commit and push to `main`. Watch the **Actions** tab. When the deploy job is gre
 - **One image for API and web app** — the tech-stack doc fixed two containers. Serving the export from the API also removes CORS from the picture and lets the app use relative URLs, so the same image works at any address.
 - **Same-origin API URL via an empty `EXPO_PUBLIC_API_URL`** — Hono's client builds `'' + '/api/me'`, a relative URL. Checked against a real export: the bundle contains no `localhost:8787`. The alternative, baking in the public URL, would tie the image to one address. Cost: the image is built for the web; a native build later needs a real URL, which the mobile phase sets.
 - **tsx at runtime, not a compiled bundle** — the API already runs under tsx everywhere, and `shared/` is TypeScript source with no build step. A bundler would add configuration to maintain for a saving of a few megabytes and a fraction of a second at start. Cost: `tsx` and `drizzle-kit` are the API's dev dependencies, so the runtime image installs the `api` workspace with its dev dependencies. Expo is still left out by installing only the `api` and `shared` workspaces.
-- **Secrets live in one `.env` on the server, typed once by the owner** — the pipeline never sees the Gemini or Clerk secret key, there is nothing to rotate in GitHub when a key changes, and the server's file is the single place to look. Rejected: storing them as GitHub secrets and writing the file on each deploy, which copies every secret into a second system for no gain at this size.
+- **Every secret in GitHub; the pipeline writes the server's env file on each deploy** — the first version had the owner type the Gemini and Clerk keys into a file on the server so the pipeline would never see them. The owner pointed out that this protected nothing: the deploy key logs in as a user in the docker group, so whatever holds that key can read the server's file anyway. With equal exposure, one place to manage secrets, no manual step on the server, "change the secret and re-run" rotation and a server that can be rebuilt from steps 1 to 4 plus one workflow run are strictly better. GitHub masks secret values in logs. The template `deploy/env.production.example` stays for local runs of the production compose file.
 - **SSH with a dedicated deploy key** — the simplest way for GitHub Actions to reach a plain server. The key pair exists only for this and can be revoked by deleting one line in `authorized_keys`. The host key is accepted on first connection (`StrictHostKeyChecking accept-new`), which trusts the first contact; pinning the host key would be the step up if this were more than a demo.
 - **`db:push --force` on every deploy** — the schema is still changing daily during the Buildathon, and a deploy whose code expects a column the database lacks is a broken demo. `--force` accepts drizzle-kit's prompts about destructive changes, so a column rename would drop data. Accepted for the demo, where the data is test data. Before real users: generated migrations (`db:generate` and `db:migrate`), which the scripts already exist for.
 - **`kb:load` by hand** — it costs Gemini quota for every changed note and the notes change rarely. Running it on each deploy would spend quota on demo day for nothing.
