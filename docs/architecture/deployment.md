@@ -1,6 +1,6 @@
 # Deployment
 
-Status: built on 2026-11-14 for the Buildathon demo · Last updated: 2026-11-14
+Status: live since 2026-11-15 at http://44.252.153.200 for the Buildathon demo · Last updated: 2026-11-15
 
 ## What this covers
 
@@ -14,7 +14,7 @@ How the Wellbeing app reaches a public address: what runs on the server, how a p
   - `db` — Postgres 17 with pgvector (`pgvector/pgvector:pg17`), its data on a named Docker volume so it survives redeploys.
 - **The image** is built by GitHub Actions and stored in GitHub's container registry as `ghcr.io/revenue-iq/lifestyle-coach`, tagged `latest` and with the commit SHA.
 - **The pipeline** (`.github/workflows/deploy.yml`) runs on every push to `main`: build and push the image, then SSH into the instance, copy the compose file, write the server's env file from the repository secrets, pull the image, restart, push the database schema, and check `/health`.
-- **The address** is plain HTTP on the static IP (`http://<static-ip>`). No domain, no certificate, by the owner's decision for the demo.
+- **The address** is plain HTTP on the static IP, http://44.252.153.200. No domain, no certificate, by the owner's decision for the demo.
 
 Files in the repository:
 
@@ -136,12 +136,13 @@ Commit and push to `main`. Watch the **Actions** tab. When the deploy job is gre
 - **`db:push --force` on every deploy** — the schema is still changing daily during the Buildathon, and a deploy whose code expects a column the database lacks is a broken demo. `--force` accepts drizzle-kit's prompts about destructive changes, so a column rename would drop data. Accepted for the demo, where the data is test data. Before real users: generated migrations (`db:generate` and `db:migrate`), which the scripts already exist for.
 - **`kb:load` by hand** — it costs Gemini quota for every changed note and the notes change rarely. Running it on each deploy would spend quota on demo day for nothing.
 - **Plain HTTP on the static IP, no domain** — the owner's call for the demo: anyone can open the address, and nothing in the app needs a secure context today. A bare IP cannot get a browser-trusted certificate, so HTTPS needs a hostname. If one appears, the step up is a third container (Caddy) with automatic Let's Encrypt certificates; the compose file gains one service and the app's port mapping moves behind it. Free hostname options noted for that moment: sslip.io (no signup, shared rate limits) or DuckDNS (an account, reliable).
-- **Clerk's development instance, over HTTP** — the owner has Clerk dev keys and chose them over the app's own dev sign-in. The app and the API both support either, chosen by whether the publishable key is set at build time and `AUTH_MODE` on the server, so the fallback is one setting change and one pipeline run.
+- **Clerk's development instance, over HTTP** — the owner has Clerk dev keys and chose them over the app's own dev sign-in. The app and the API both support either, chosen by whether the publishable key is set at build time and `AUTH_MODE` on the server, so the fallback is one setting change and one pipeline run. Confirmed on 2026-11-15: Clerk's sign-in form renders on the plain-HTTP IP address in development mode with no console errors. Lesson from the first deploy: the key was added as a GitHub *secret* while the workflow read a *variable*, so the bundle shipped without it and the app fell back to the developer sign-in against an API in Clerk mode. The workflow now reads either and fails the build when the app's and the API's sign-in settings disagree.
 - **1 GB instance with a swap file** — nothing is built on it, so the load is Node, Postgres at default settings and Docker. The swap file is a safety net for the moment a new image is unpacked.
 - **Compose file copied by the pipeline, no git on the server** — the server holds three files (`docker-compose.yml`, `db/init.sql`, `.env`) and nothing else from the repository. Cloning would put the source and the Gemini-key-free `.env.example` on the server for no use.
 - **The pipeline prepares the server too (Docker, swap, folder)** — the first version had the owner run those commands by hand over SSH, which needed the IP and a terminal session for a one-off. The owner asked why anything beyond GitHub needed the address at all; nothing does. The step checks before each action, so it is safe on every run, and a replacement instance needs only the key and the IP. Docker's own install script is used because it is the shortest path on a fresh Ubuntu and this is a demo server. Docker commands in the deploy run under `sg docker` because the SSH session that just granted the group would not otherwise have it.
 - **`:latest` plus a SHA tag** — compose pulls `latest`, which keeps the owner's manual commands simple; the SHA tag exists for rollback.
 - **Health check inside the deploy job** — the pipeline is red, with the app's last fifty log lines, when the container starts but does not answer. Without it a broken deploy looks green.
+- **First production run, 2026-11-15** — the first full run built the image in about three minutes, installed Docker on the fresh instance, started both containers, pushed the schema and passed the health check in under two minutes on the server side. The knowledge-notes workflow then embedded all 59 notes in about thirty seconds.
 - **Checked locally before the first pipeline run** — the image was built and run on the owner's Mac with Docker Desktop against the production compose file: `db:push` created the tables, the vector extension was present from the init script, `/`, `/home` and a deep route returned the page, assets were served, and the API answered as before.
 
 ## Future
