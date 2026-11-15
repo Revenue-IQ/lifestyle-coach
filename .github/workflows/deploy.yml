@@ -17,6 +17,10 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # A docs-only push is not a new version of the app.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
