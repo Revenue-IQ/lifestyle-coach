@@ -65,6 +65,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check the deploy settings exist
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+        run: |
+          ok=1
+          [ -n "$HOST" ] || { echo "::error::Repository secret LIGHTSAIL_HOST is not set (Settings → Secrets and variables → Actions → Repository secrets)"; ok=0; }
+          [ -n "$KEY" ] || { echo "::error::Repository secret LIGHTSAIL_SSH_KEY is not set (Settings → Secrets and variables → Actions → Repository secrets)"; ok=0; }
+          [ "$ok" = 1 ]
+
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
