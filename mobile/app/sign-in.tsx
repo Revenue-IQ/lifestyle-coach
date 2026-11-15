@@ -3,6 +3,7 @@ import { goBack } from '@/lib/navigation';
 import { useState } from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { AUTH_MODE, useAppAuth } from '@/auth';
+import { Brand } from '@/components/Brand';
 import { Button, Card, Screen, Small, Subtitle, Title } from '@/components/ui';
 
 /**
@@ -15,7 +16,7 @@ export default function SignIn() {
 
   return (
     <Screen>
-      <Small className="mb-1 font-semibold text-accent">Inner Weather</Small>
+      <Brand size={32} className="mb-5" />
       <Title>Save your answers</Title>
       <Subtitle>
         An email is all we need, to send you a sign-in code. No password to remember, and no real name anywhere.

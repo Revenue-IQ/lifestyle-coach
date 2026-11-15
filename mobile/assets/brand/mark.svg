@@ -1,0 +1,6 @@
+<!-- Inner Weather mark: a sun clearing a horizon. Same geometry as mobile/src/components/Brand.tsx; change both. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M30 62 A20 20 0 0 1 70 62 Z" fill="#2F855A"/>
+  <path d="M12 72 H88" stroke="#2F855A" stroke-width="6" stroke-linecap="round"/>
+  <path d="M50 34 V26 M69.8 42.2 L75.5 36.5 M30.2 42.2 L24.5 36.5" stroke="#2F855A" stroke-width="6" stroke-linecap="round"/>
+</svg>

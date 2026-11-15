@@ -1,0 +1,32 @@
+{
+  "drop": ["who5", "who5-score", "today", "first-points", "home-picture", "home-rest", "coach-knows"],
+  "trim": {
+    "bugging-1": { "end": 1 },
+    "bugging-2": { "end": 2.5 },
+    "bugging-3": { "end": 2.5 },
+    "where-to-look": { "end": 2.5 },
+    "sign-in": { "end": 2 },
+    "name": { "end": 1 },
+    "home-points": { "end": 1 },
+    "home-look": { "end": 1.5 },
+    "area-open": { "end": 2 },
+    "rating": { "end": 3 },
+    "gates": { "end": 1 },
+    "coach-opens": { "end": 4 },
+    "proposal": { "end": 0.5 },
+    "make-step": { "end": 2 },
+    "step-log": { "end": 3.5 },
+    "did-it-help": { "end": 2 },
+    "ladder": { "end": 2 },
+    "home-steps": { "end": 1.5 }
+  },
+  "cuts": {
+    "name": [[0, 1.5, "still"]],
+    "about-you": [[0, 1.2, "still"]],
+    "skip": [[0, 1.0, "still"]],
+    "rate-answers": [[3.2, 8.9]]
+  },
+  "speed": 1,
+  "title": 2.5,
+  "closing": 4.5
+}

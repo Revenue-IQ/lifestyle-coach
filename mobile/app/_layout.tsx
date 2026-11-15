@@ -32,6 +32,7 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
+              title: 'Inner Weather', // the browser tab title on web
               contentStyle: { backgroundColor: colors.paper },
             }}
           />

@@ -1,3 +1,5 @@
+<img src="mobile/assets/brand/lockup.png" alt="Inner Weather" width="480">
+
 # Inner Weather
 
 **Live demo: http://44.252.153.200** (plain HTTP, Buildathon build, US resources)

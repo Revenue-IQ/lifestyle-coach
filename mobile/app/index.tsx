@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useAppAuth } from '@/auth';
 import { Ask } from '@/components/Ask';
+import { Brand, Hero } from '@/components/Brand';
 import { Button, Chip, Loading, Screen, Small, Subtitle, Title } from '@/components/ui';
 import { useMe } from '@/api/hooks';
 import { savePending } from '@/lib/pending';
@@ -60,7 +61,7 @@ export default function FirstScreen() {
         </View>
       }
     >
-      <Small className="mb-1 font-semibold text-accent">Inner Weather</Small>
+      {round === 1 ? <Hero className="mb-7" /> : <Brand className="mb-5" />}
       <Small className="mb-2">{round} of 2</Small>
       <Title>{current.title}</Title>
       <Subtitle>{current.subtitle}</Subtitle>

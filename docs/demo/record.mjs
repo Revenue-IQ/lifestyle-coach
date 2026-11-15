@@ -8,6 +8,7 @@
  *   node record.mjs                       full run (two live coach calls)
  *   node record.mjs --stop-before coach   everything up to the coach, no model call
  *   node record.mjs --only steps          test the step ladder on a planted step
+ *   node record.mjs --assets-only         redraw bubbles and cards after editing build/timeline.json
  *
  * Needs the API (8787) and the web app (8081) running with AUTH_MODE=dev, and
  * psql on the path to reset the demo account. Nothing here reads api/.env.
@@ -33,12 +34,13 @@ const flag = (name) => {
 };
 const STOP_BEFORE = flag('--stop-before');
 const ONLY = flag('--only');
+const ASSETS_ONLY = args.includes('--assets-only'); // redraw cards and bubbles from the last timeline, no recording
 
 /** Layout shared with compose.mjs through timeline.json. */
 export const LAYOUT = {
   canvas: { width: 1920, height: 1080 },
-  phone: { width: 430, height: 932, x: 470, y: 74, radius: 28 },
-  bubble: { x: 960, centerY: 540, maxWidth: 620 },
+  phone: { width: 430, height: 932, x: 580, y: 74, radius: 28 },
+  bubble: { x: 1070, centerY: 540, maxWidth: 620 },
   colors: { paper: '#FBF8F3', ink: '#1F2933', muted: '#6B7280', line: '#E7E2DA', accent: '#2F855A', card: '#FFFFFF' },
 };
 
@@ -46,13 +48,17 @@ const TITLE = { heading: 'Inner Weather', sub: 'For people who feel stuck and wa
 const CLOSING = {
   heading: 'The rules it keeps',
   lines: [
-    'Not therapy or a diagnosis.',
     'Crisis language gets a plain notice, not a coach reply.',
     'Habits only, from sourced notes.',
     'Nothing is ever taken away.',
   ],
-  foot: 'Inner Weather',
+  // The lockup sits where the name was, with the app's own footer line under it.
+  foot: 'Not therapy or a diagnosis. In crisis? Call or text 988.',
   seconds: 7,
+};
+const BRAND = {
+  mark: path.join(REPO, 'mobile', 'assets', 'brand', 'mark.svg'),
+  lockup: path.join(REPO, 'mobile', 'assets', 'brand', 'lockup.png'),
 };
 
 // ---------------------------------------------------------------------------
@@ -327,8 +333,8 @@ const SCENES = [
     },
   },
   {
-    id: 'sources', hold: 5.5,
-    bubble: 'Every message shows its sources',
+    id: 'coach-knows', hold: 5.5,
+    bubble: 'It already knows your rating',
     async run(page) {
       await pause(500);
     },
@@ -344,7 +350,7 @@ const SCENES = [
     },
   },
   {
-    id: 'proposal', hold: 8,
+    id: 'proposal', hold: 4.5,
     bubble: 'One small step, not a plan',
     async run(page, ctx) {
       // Wait for the reply; if the coach asked a question instead of proposing, one more turn.
@@ -357,6 +363,13 @@ const SCENES = [
       }
       if (!proposed) throw new Error('The coach did not propose a step');
       await pause(500);
+    },
+  },
+  {
+    id: 'sources', hold: 4,
+    bubble: 'Sources under every message',
+    async run(page) {
+      await pause(300);
     },
   },
   {
@@ -445,6 +458,14 @@ async function checkServers() {
 }
 
 async function main() {
+  if (ASSETS_ONLY) {
+    const saved = JSON.parse(fs.readFileSync(path.join(BUILD, 'timeline.json'), 'utf8'));
+    const browser = await chromium.launch();
+    await renderAssets(browser, saved.scenes);
+    await browser.close();
+    console.log(`Redrew ${saved.scenes.length} bubbles and the cards.`);
+    return;
+  }
   await checkServers();
   fs.mkdirSync(BUILD, { recursive: true });
   resetDemoAccount();
@@ -555,7 +576,9 @@ function baseCss() {
     .sub { color: ${c.muted}; font-weight: 500; font-size: 38px; line-height: 1.4; max-width: 1200px; }
     .lines { display: flex; flex-direction: column; gap: 26px; }
     .lines div { font-weight: 500; font-size: 42px; line-height: 1.35; }
-    .foot { color: ${c.accent}; font-weight: 600; font-size: 30px; margin-top: 70px; }
+    .mark { width: 160px; height: 160px; margin-bottom: 30px; }
+    .lockup { width: 450px; height: auto; margin-top: 60px; }
+    .foot { color: ${c.muted}; font-weight: 500; font-size: 26px; margin-top: 22px; }
     .bubble { display: inline-block; max-width: ${LAYOUT.bubble.maxWidth}px; background: ${c.card}; border: 1px solid ${c.line}; border-radius: 26px; padding: 24px 32px; font-weight: 500; font-size: 36px; line-height: 1.3; box-shadow: 0 10px 34px rgba(31, 41, 51, 0.08); }
     .frame { position: absolute; left: ${LAYOUT.phone.x}px; top: ${LAYOUT.phone.y}px; width: ${LAYOUT.phone.width}px; height: ${LAYOUT.phone.height}px; border-radius: ${LAYOUT.phone.radius}px; border: 1px solid ${c.line}; box-shadow: 0 30px 80px rgba(31, 41, 51, 0.16), 0 0 0 3000px ${c.paper}; }
   `;
@@ -571,9 +594,11 @@ async function renderAssets(browser, timeline) {
     await target.screenshot({ path: path.join(BUILD, file), omitBackground: true });
   };
 
-  await shot(`<div class="card"><h1>${esc(TITLE.heading)}</h1><div class="sub">${esc(TITLE.sub)}</div></div>`, 'title.png');
+  const mark = `<img class="mark" alt="" src="data:image/svg+xml;base64,${fs.readFileSync(BRAND.mark).toString('base64')}">`;
+  const lockup = `<img class="lockup" alt="Inner Weather" src="data:image/png;base64,${fs.readFileSync(BRAND.lockup).toString('base64')}">`;
+  await shot(`<div class="card">${mark}<h1>${esc(TITLE.heading)}</h1><div class="sub">${esc(TITLE.sub)}</div></div>`, 'title.png');
   await shot(
-    `<div class="card"><h2>${esc(CLOSING.heading)}</h2><div class="lines">${CLOSING.lines.map((l) => `<div>${esc(l)}</div>`).join('')}</div><div class="foot">${esc(CLOSING.foot)}</div></div>`,
+    `<div class="card"><h2>${esc(CLOSING.heading)}</h2><div class="lines">${CLOSING.lines.map((l) => `<div>${esc(l)}</div>`).join('')}</div>${lockup}<div class="foot">${esc(CLOSING.foot)}</div></div>`,
     'closing.png',
   );
   await shot(`<div style="position:relative;width:${LAYOUT.canvas.width}px;height:${LAYOUT.canvas.height}px;overflow:hidden"><div class="frame"></div></div>`, 'frame.png');
