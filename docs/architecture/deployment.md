@@ -103,7 +103,7 @@ Nothing to do: created by the same preparation step. Nothing is ever typed on th
 | Secret | `POSTGRES_PASSWORD` | letters and digits, made up once. Never change it afterwards: Postgres keeps the password its volume was created with |
 | Secret | `CLERK_SECRET_KEY` | Clerk's `sk_test_...` key. Required unless `AUTH_MODE` is `dev` |
 | Secret | `GEMINI_API_KEY` | the Gemini key. Empty switches the coach off |
-| Variable | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's `pk_test_...` key. Leave unset to build with the app's own dev sign-in |
+| Variable | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk's `pk_test_...` key; a secret of the same name also works. Leave unset, with `AUTH_MODE` set to `dev`, to build with the app's own dev sign-in. The build fails if the two disagree |
 | Variable | `AUTH_MODE` | optional, default `clerk`; `dev` for the built-in sign-in |
 | Variable | `LIGHTSAIL_USER` | optional, default `ubuntu` |
 | Variable | `EXTRA_ENV` | optional extra lines for the server env file, for example `GEMINI_TEXT_MODEL=...` |
