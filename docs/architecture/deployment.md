@@ -26,6 +26,7 @@ Files in the repository:
 | `deploy/db/init.sql` | `CREATE EXTENSION IF NOT EXISTS vector`, run by Postgres when its volume is first created. |
 | `deploy/env.production.example` | The shape of the server's `.env`, for running the production compose file locally. In production the pipeline writes that file. |
 | `.github/workflows/deploy.yml` | The pipeline. |
+| `.github/workflows/kb-load.yml` | Manual workflow that loads the knowledge notes on the server. |
 
 ## How it works
 
@@ -50,10 +51,7 @@ Every secret lives in GitHub; the server holds only what the last deploy wrote. 
 
 ### What is not automatic
 
-- **Loading the knowledge notes** (`kb:load`). It embeds every changed note through Gemini, so it is run by hand, once after the first deploy and again when the notes change:
-  ```bash
-  cd /opt/wellbeing && docker compose exec app node_modules/.bin/tsx api/src/knowledge/load.ts
-  ```
+- **Loading the knowledge notes** (`kb:load`). It embeds every changed note through Gemini, so it is a separate workflow, **Load knowledge notes** (`.github/workflows/kb-load.yml`), run by hand from the Actions tab: once after the first deploy and again when the notes change. It runs the loader inside the app container over SSH, the same way the deploy does. Unchanged notes are skipped, so re-running it costs nothing.
 - **Backups.** Nothing backs up the Postgres volume. Accepted for the demo (see tech-stack.md).
 
 ## One-time setup
@@ -116,7 +114,7 @@ The image registry needs no setting: the workflow uses the job's own token, and 
 
 ### 6. First deploy
 
-Commit and push to `main`. Watch the **Actions** tab. When the deploy job is green, open `http://<static-ip>`: the first screen loads and `http://<static-ip>/health` answers `{"ok":true}`. Then load the knowledge notes once with the command under "What is not automatic".
+Commit and push to `main`. Watch the **Actions** tab. When the deploy job is green, open `http://<static-ip>`: the first screen loads and `http://<static-ip>/health` answers `{"ok":true}`. Then run the **Load knowledge notes** workflow once from the Actions tab.
 
 ### Day to day
 

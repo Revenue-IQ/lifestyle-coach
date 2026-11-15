@@ -1,0 +1,34 @@
+# Loads the knowledge notes into the production database, embedding changed notes through
+# Gemini. Run by hand from the Actions tab: once after the first deploy, and again whenever
+# api/src/knowledge/notes.ts changes. Kept out of the deploy so quota is not spent on every push.
+name: Load knowledge notes
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  load:
+    name: Embed and load notes on the server
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat > ~/.ssh/config <<CFG
+          Host lightsail
+            HostName ${{ secrets.LIGHTSAIL_HOST }}
+            User ${{ vars.LIGHTSAIL_USER || 'ubuntu' }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+          CFG
+
+      - name: Load the notes
+        run: ssh lightsail 'cd /opt/wellbeing && sg docker -c "docker compose exec -T app node_modules/.bin/tsx api/src/knowledge/load.ts"'
