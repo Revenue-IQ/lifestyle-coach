@@ -100,9 +100,26 @@ jobs:
             StrictHostKeyChecking accept-new
           CFG
 
+      - name: Prepare the server (first run only does anything)
+        run: |
+          ssh lightsail 'bash -s' <<'PREP'
+          set -e
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "Installing Docker"
+            curl -fsSL https://get.docker.com | sudo sh
+            sudo usermod -aG docker "$USER"
+          fi
+          if ! sudo swapon --show | grep -q /swapfile; then
+            echo "Adding a 1 GB swap file"
+            sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+            grep -q /swapfile /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+          fi
+          sudo mkdir -p /opt/wellbeing/db
+          sudo chown -R "$USER:$USER" /opt/wellbeing
+          PREP
+
       - name: Copy compose file and database init script
         run: |
-          ssh lightsail 'mkdir -p /opt/wellbeing/db'
           scp docker-compose.prod.yml lightsail:/opt/wellbeing/docker-compose.yml
           scp deploy/db/init.sql lightsail:/opt/wellbeing/db/init.sql
 
@@ -122,17 +139,19 @@ jobs:
             [ -z "$EXTRA_ENV" ] || printf '%s\n' "$EXTRA_ENV"
           } | ssh lightsail 'umask 077 && cat > /opt/wellbeing/.env'
 
+      # `sg docker` runs each command with the docker group, which a session opened before the
+      # group was granted (the very first run) would otherwise lack.
       - name: Log the server in to the registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | ssh lightsail "docker login ghcr.io -u '${{ github.actor }}' --password-stdin"
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | ssh lightsail "sg docker -c \"docker login ghcr.io -u '${{ github.actor }}' --password-stdin\""
 
       - name: Pull the new image and restart
-        run: ssh lightsail 'cd /opt/wellbeing && docker compose pull app && docker compose up -d --remove-orphans'
+        run: ssh lightsail 'cd /opt/wellbeing && sg docker -c "docker compose pull app && docker compose up -d --remove-orphans"'
 
       - name: Push the database schema
-        run: ssh lightsail 'cd /opt/wellbeing && docker compose exec -T app npm run db:push -w api -- --force'
+        run: ssh lightsail 'cd /opt/wellbeing && sg docker -c "docker compose exec -T app npm run db:push -w api -- --force"'
 
       - name: Health check
-        run: ssh lightsail 'for i in $(seq 1 20); do curl -fsS http://localhost/health && exit 0; sleep 3; done; docker compose -f /opt/wellbeing/docker-compose.yml logs app --tail 50; exit 1'
+        run: ssh lightsail 'for i in $(seq 1 20); do curl -fsS http://localhost/health && exit 0; sleep 3; done; sg docker -c "docker compose -f /opt/wellbeing/docker-compose.yml logs app --tail 50"; exit 1'
 
       - name: Remove old images
-        run: ssh lightsail 'docker image prune -af >/dev/null'
+        run: ssh lightsail 'sg docker -c "docker image prune -af" >/dev/null'

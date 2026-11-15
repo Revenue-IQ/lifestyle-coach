@@ -44,7 +44,7 @@ Files in the repository:
 
 1. Push to `main` (or run the workflow by hand from the Actions tab).
 2. **Build job:** logs in to the registry with the job's own token, builds the image with the build arguments above, pushes `:latest` and `:<sha>`. Layers are cached in GitHub Actions' cache, so an unchanged dependency set does not reinstall.
-3. **Deploy job:** checks the secrets exist and fails with the missing name if not, writes the deploy key from the `LIGHTSAIL_SSH_KEY` secret, SSHes to `LIGHTSAIL_HOST` as `ubuntu`, copies `docker-compose.prod.yml` and `deploy/db/init.sql` into `/opt/wellbeing`, writes `/opt/wellbeing/.env` from the `POSTGRES_PASSWORD`, `CLERK_SECRET_KEY` and `GEMINI_API_KEY` secrets (plus `AUTH_MODE` and any `EXTRA_ENV` lines from the repository variables), logs the server in to the registry with the job token, runs `docker compose pull app && docker compose up -d`, then `npm run db:push -w api -- --force` inside the app container, then polls `http://localhost/health` and prints the app's logs if it does not answer. Finally it prunes old images so the small disk does not fill.
+3. **Deploy job:** checks the secrets exist and fails with the missing name if not, writes the deploy key from the `LIGHTSAIL_SSH_KEY` secret, SSHes to `LIGHTSAIL_HOST` as `ubuntu`, prepares the server if needed (Docker, docker group, swap file, `/opt/wellbeing`), copies `docker-compose.prod.yml` and `deploy/db/init.sql` into `/opt/wellbeing`, writes `/opt/wellbeing/.env` from the `POSTGRES_PASSWORD`, `CLERK_SECRET_KEY` and `GEMINI_API_KEY` secrets (plus `AUTH_MODE` and any `EXTRA_ENV` lines from the repository variables), logs the server in to the registry with the job token, runs `docker compose pull app && docker compose up -d`, then `npm run db:push -w api -- --force` inside the app container, then polls `http://localhost/health` and prints the app's logs if it does not answer. Finally it prunes old images so the small disk does not fill.
 
 Every secret lives in GitHub; the server holds only what the last deploy wrote. `DATABASE_URL` is assembled in the compose file from `POSTGRES_PASSWORD`, so the password exists in one secret.
 
@@ -58,7 +58,7 @@ Every secret lives in GitHub; the server holds only what the last deploy wrote. 
 
 ## One-time setup
 
-Done by the project owner, who holds the AWS account, the GitHub repository and every secret. About twenty minutes.
+Done by the project owner, who holds the AWS account, the GitHub repository and every secret. About ten minutes: the instance, its key, and the GitHub secrets. The pipeline does the rest, including installing Docker.
 
 ### 1. The Lightsail instance
 
@@ -68,21 +68,7 @@ Done by the project owner, who holds the AWS account, the GitHub repository and 
 
 ### 2. Docker and a swap file on the instance
 
-Open the browser-based SSH terminal from the instance page (or SSH in with the default key). Run:
-
-```bash
-curl -fsSL https://get.docker.com | sudo sh
-```
-
-```bash
-sudo usermod -aG docker ubuntu
-```
-
-```bash
-sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-Log out and in again so the group change applies, then `docker ps` should answer without `sudo`.
+Nothing to do. The deploy job's first step over SSH installs Docker with Docker's official script if it is missing, adds `ubuntu` to the docker group, adds a 1 GB swap file if there is none, and creates `/opt/wellbeing`. The step is idempotent, so later runs pass through it in a second.
 
 ### 3. The deploy key
 
@@ -106,13 +92,7 @@ Check from the Mac: `ssh -i ~/.ssh/wellbeing-deploy ubuntu@<static-ip> docker ps
 
 ### 4. The server folder
 
-On the instance:
-
-```bash
-sudo mkdir -p /opt/wellbeing/db && sudo chown -R ubuntu:ubuntu /opt/wellbeing
-```
-
-Nothing else is typed on the server. The compose file, `db/init.sql` and `.env` all arrive with the first deploy.
+Nothing to do: created by the same preparation step. Nothing is ever typed on the server. The compose file, `db/init.sql` and `.env` all arrive with the first deploy.
 
 ### 5. GitHub repository settings
 
@@ -144,7 +124,7 @@ Commit and push to `main`. Watch the **Actions** tab. When the deploy job is gre
 - **Roll back:** `APP_IMAGE=ghcr.io/revenue-iq/lifestyle-coach:<sha> docker compose up -d` in `/opt/wellbeing`.
 - **Switch to the built-in dev sign-in:** remove the `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` variable in GitHub, set the `AUTH_MODE` variable to `dev`, re-run the workflow. The app then shows the developer sign-in, where any email is accepted.
 - **Change a secret:** change it in GitHub and re-run the workflow. The deploy rewrites the server's env file and restarts the app.
-- **Rebuild the server from nothing:** steps 1 to 4 above, then re-run the workflow. Nothing else was ever on it.
+- **Rebuild the server from nothing:** a new instance with the same key and IP (steps 1 and 3), then re-run the workflow. It installs Docker and everything else itself.
 
 ## Decisions
 
@@ -161,6 +141,7 @@ Commit and push to `main`. Watch the **Actions** tab. When the deploy job is gre
 - **Clerk's development instance, over HTTP** — the owner has Clerk dev keys and chose them over the app's own dev sign-in. The app and the API both support either, chosen by whether the publishable key is set at build time and `AUTH_MODE` on the server, so the fallback is one setting change and one pipeline run.
 - **1 GB instance with a swap file** — nothing is built on it, so the load is Node, Postgres at default settings and Docker. The swap file is a safety net for the moment a new image is unpacked.
 - **Compose file copied by the pipeline, no git on the server** — the server holds three files (`docker-compose.yml`, `db/init.sql`, `.env`) and nothing else from the repository. Cloning would put the source and the Gemini-key-free `.env.example` on the server for no use.
+- **The pipeline prepares the server too (Docker, swap, folder)** — the first version had the owner run those commands by hand over SSH, which needed the IP and a terminal session for a one-off. The owner asked why anything beyond GitHub needed the address at all; nothing does. The step checks before each action, so it is safe on every run, and a replacement instance needs only the key and the IP. Docker's own install script is used because it is the shortest path on a fresh Ubuntu and this is a demo server. Docker commands in the deploy run under `sg docker` because the SSH session that just granted the group would not otherwise have it.
 - **`:latest` plus a SHA tag** — compose pulls `latest`, which keeps the owner's manual commands simple; the SHA tag exists for rollback.
 - **Health check inside the deploy job** — the pipeline is red, with the app's last fifty log lines, when the container starts but does not answer. Without it a broken deploy looks green.
 - **Checked locally before the first pipeline run** — the image was built and run on the owner's Mac with Docker Desktop against the production compose file: `db:push` created the tables, the vector extension was present from the init script, `/`, `/home` and a deep route returned the page, assets were served, and the API answered as before.
